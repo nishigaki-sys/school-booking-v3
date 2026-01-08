@@ -195,6 +195,55 @@
         </div>
     </div>
 
+    <div id="inquiryModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60] hidden">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h3 class="text-lg font-bold mb-2 text-slate-700">日程リクエスト・お問い合わせ</h3>
+            <p class="text-xs text-slate-500 mb-4">
+                ご希望の日程や、ご質問がございましたら下記フォームよりお送りください。<br>
+                担当者より折り返しご連絡いたします。
+            </p>
+            <form id="inquiryForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">保護者様のお名前</label>
+                    <input type="text" id="inqName" class="w-full p-3 border border-slate-300 rounded-lg text-sm" required placeholder="例: 山田 太郎">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">メールアドレス</label>
+                    <input type="email" id="inqEmail" class="w-full p-3 border border-slate-300 rounded-lg text-sm" required placeholder="example@email.com">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">電話番号</label>
+                    <input type="tel" id="inqPhone" class="w-full p-3 border border-slate-300 rounded-lg text-sm" required placeholder="090-1234-5678">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">ご希望の曜日・時間など</label>
+                    <textarea id="inqContent" class="w-full p-3 border border-slate-300 rounded-lg text-sm h-24" required placeholder="例: 平日の17時以降、または土曜日の午前中を希望します。"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('inquiryModal').classList.add('hidden')" class="px-4 py-2 bg-slate-100 rounded text-sm font-bold text-slate-600">キャンセル</button>
+                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-700 shadow">送信する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full text-center slide-in-up">
+            <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">送信完了</h2>
+            <p class="text-slate-600 mb-4" id="successMessage">ご予約ありがとうございます！<br>内容確認メールをお送りしました。</p>
+            <div class="bg-slate-50 p-4 rounded-lg text-left mb-6" id="successDetailArea">
+                <h4 class="font-bold mb-2 border-b border-slate-200 pb-2 text-slate-700">予約内容</h4>
+                <div id="modal-summary" class="text-sm space-y-2 text-slate-600"></div>
+            </div>
+            <button id="closeModal" class="w-full py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition">閉じる</button>
+        </div>
+    </div>
+
     <script type="module">
     // バージョンを 12.7.0 に更新
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
@@ -701,6 +750,7 @@
                 email: document.getElementById('email').value,
                 phone: document.getElementById('phone').value,
                 grade: selectedGrade,
+                // 流入経路情報
                 sourceType: 'web',
                 utmSource: utmSource || null,
                 utmMedium: utmMedium || null,
@@ -736,6 +786,7 @@
 
             const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'bookings'), { ...pendingBookingData, createdAt: serverTimestamp() });
             
+            // [Log] Conversion
             logEvent('conversion', { bookingId: docRef.id });
 
             document.getElementById('modal-summary').innerHTML = `
