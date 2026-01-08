@@ -195,63 +195,13 @@
         </div>
     </div>
 
-    <div id="inquiryModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60] hidden">
-        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
-            <h3 class="text-lg font-bold mb-2 text-slate-700">日程リクエスト・お問い合わせ</h3>
-            <p class="text-xs text-slate-500 mb-4">
-                ご希望の日程や、ご質問がございましたら下記フォームよりお送りください。<br>
-                担当者より折り返しご連絡いたします。
-            </p>
-            <form id="inquiryForm" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">保護者様のお名前</label>
-                    <input type="text" id="inqName" class="w-full p-3 border border-slate-300 rounded-lg text-sm" required placeholder="例: 山田 太郎">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">メールアドレス</label>
-                    <input type="email" id="inqEmail" class="w-full p-3 border border-slate-300 rounded-lg text-sm" required placeholder="example@email.com">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">電話番号</label>
-                    <input type="tel" id="inqPhone" class="w-full p-3 border border-slate-300 rounded-lg text-sm" required placeholder="090-1234-5678">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">ご希望の曜日・時間など</label>
-                    <textarea id="inqContent" class="w-full p-3 border border-slate-300 rounded-lg text-sm h-24" required placeholder="例: 平日の17時以降、または土曜日の午前中を希望します。"></textarea>
-                </div>
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="document.getElementById('inquiryModal').classList.add('hidden')" class="px-4 py-2 bg-slate-100 rounded text-sm font-bold text-slate-600">キャンセル</button>
-                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-700 shadow">送信する</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-white rounded-2xl p-8 max-w-md w-full text-center slide-in-up">
-            <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-            </div>
-            <h2 class="text-2xl font-bold mb-2">送信完了</h2>
-            <p class="text-slate-600 mb-4" id="successMessage">ご予約ありがとうございます！<br>内容確認メールをお送りしました。</p>
-            <div class="bg-slate-50 p-4 rounded-lg text-left mb-6" id="successDetailArea">
-                <h4 class="font-bold mb-2 border-b border-slate-200 pb-2 text-slate-700">予約内容</h4>
-                <div id="modal-summary" class="text-sm space-y-2 text-slate-600"></div>
-            </div>
-            <button id="closeModal" class="w-full py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition">閉じる</button>
-        </div>
-    </div>
-
-   <script type="module">
+    <script type="module">
     // バージョンを 12.7.0 に更新
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
     import { getFirestore, doc, getDoc, addDoc, collection, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
     // --- 設定エリア: 除外したいIPアドレス ---
-    // カウントしたくないIPアドレスをここに追加してください
     const EXCLUDED_IPS = [
         "137.83.213.235",   // 社内
         "203.0.113.10"   // 自宅
@@ -263,6 +213,17 @@
         grade3_plus: { bg: 'bg-[#00b4dc]', text: 'text-white', btnBorder: 'border-[#00b4dc]', btnText: 'text-[#00b4dc]', btnHover: 'hover:bg-blue-50' }
     };
 
+    // --- ID生成関数の追加 ---
+    const generateBookingId = () => {
+        const now = new Date();
+        const dateStr = now.getFullYear().toString() + 
+                        String(now.getMonth() + 1).padStart(2, '0') + 
+                        String(now.getDate()).padStart(2, '0');
+        // ランダムな6桁の英数字（大文字）
+        const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
+        return `BK-${dateStr}-${randomStr}`;
+    };
+
     document.addEventListener('DOMContentLoaded', () => {
         let auth, db, user, appId = 'robot-school-booking-v4';
         let schools = [], currentSchoolId = null, currentSettings = null, allBookings = [];
@@ -272,19 +233,15 @@
         let hasLoggedFormInput = false; 
         let hasLoggedPageView = false;
         
-        // IP判定用のPromise
         let ipCheckPromise = null;
-
-        // 外部サービスを使ってIPを取得する関数
         const getIpPromise = () => {
              if (!ipCheckPromise) {
-                 // 外部API (api.ipify.org) を使用してIPアドレスを取得
                  ipCheckPromise = fetch('https://api.ipify.org?format=json')
                     .then(res => res.json())
                     .then(data => data.ip)
                     .catch(e => {
                         console.warn("IP取得失敗:", e);
-                        return null; // 失敗時はnullを返す
+                        return null; 
                     });
              }
              return ipCheckPromise;
@@ -292,7 +249,6 @@
 
         const initFirebase = async () => {
             try {
-                // すぐにIP取得を開始（非同期）
                 getIpPromise();
 
                 let firebaseConfig = {
@@ -338,21 +294,14 @@
             }
         };
 
-        // --- Logger Function (IP除外機能付き) ---
         const logEvent = async (eventName, details = {}) => {
             if (!currentSchoolId) return;
-            
             try {
-                // IPアドレスの判定が終わるまで待機
                 const currentIp = await getIpPromise();
-
-                // 除外リストに含まれていたらログ送信をスキップ
                 if (currentIp && EXCLUDED_IPS.includes(currentIp)) {
                     console.log(`[Log Skipped] Access from excluded IP: ${currentIp} (Event: ${eventName})`);
                     return;
                 }
-
-                // ログ送信
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'access_logs'), {
                     schoolId: currentSchoolId,
                     event: eventName,
@@ -398,7 +347,6 @@
             document.getElementById('schoolSelectionView').classList.add('hidden');
             document.getElementById('loadingScreen').classList.remove('hidden');
             
-            // Load Settings
             onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', schoolId), (snap) => {
                 if (!snap.exists()) {
                     alert("指定された校舎が見つかりません。");
@@ -412,7 +360,6 @@
                 document.getElementById('loadingScreen').classList.add('hidden');
                 document.getElementById('userView').classList.remove('hidden');
                 
-                // [Log] Page View (First load only)
                 if (!hasLoggedPageView) {
                     logEvent('page_view');
                     hasLoggedPageView = true;
@@ -425,14 +372,11 @@
                     document.getElementById('navBackBtn').classList.remove('hidden');
                 }
                 
-                // Setup Form Input Tracking
                 setupFormTracking();
             });
-            // Load Bookings for capacity check
             onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'bookings'), (snap) => {
                 allBookings = [];
                 snap.forEach(doc => { if(doc.data().schoolId === schoolId) allBookings.push(doc.data()); });
-                // Re-render calendar if bookings update to refresh availability marks
                 if(document.getElementById('calendarContainer').style.display !== 'none') {
                       renderUserCalendar();
                 }
@@ -442,7 +386,6 @@
         
         const setupFormTracking = () => {
             const inputs = document.querySelectorAll('#userInfoForm input');
-            // Do not reset hasLoggedFormInput here to prevent re-logging on snapshot update
             inputs.forEach(input => {
                 input.addEventListener('input', () => {
                     if (!hasLoggedFormInput) {
@@ -468,12 +411,10 @@
             document.getElementById('schoolInfoDisplay').textContent = `${s.address || ''} | ${s.phoneNumber || ''}`;
         };
 
-        // Grade Select
         document.getElementById('gradeSelector').addEventListener('click', (e) => {
             if (e.target.tagName === 'BUTTON') {
                 selectedGrade = e.target.dataset.grade;
                 
-                // [Log] Grade Selection
                 logEvent('grade_selection', { grade: selectedGrade });
 
                 document.querySelectorAll('#gradeSelector button').forEach(btn => {
@@ -488,12 +429,11 @@
                 renderUserCalendar();
                 document.getElementById('timeSlotsContainer').innerHTML = '';
                 document.getElementById('bookingForm').style.display = 'none';
-                document.getElementById('selectedContentDetails').classList.add('hidden'); // 詳細を隠す
-                document.getElementById('inquirySection').style.display = 'block'; // お問い合わせ表示
+                document.getElementById('selectedContentDetails').classList.add('hidden'); 
+                document.getElementById('inquirySection').style.display = 'block';
             }
         });
 
-        // Inquiry Modal Logic
         document.getElementById('openInquiryModalBtn').onclick = () => {
              document.getElementById('inquiryModal').classList.remove('hidden');
         };
@@ -504,7 +444,6 @@
             btn.disabled = true;
             btn.textContent = "送信中...";
 
-            // UTMパラメータ取得 (問い合わせにも付与)
             const urlParams = new URLSearchParams(window.location.search);
             const utmSource = urlParams.get('utm_source');
             const utmMedium = urlParams.get('utm_medium');
@@ -519,7 +458,6 @@
                     phone: document.getElementById('inqPhone').value,
                     preferredSchedule: document.getElementById('inqContent').value,
                     grade: selectedGrade || 'unselected',
-                    // 流入経路情報
                     sourceType: 'web_inquiry',
                     utmSource: utmSource || null,
                     utmMedium: utmMedium || null,
@@ -530,9 +468,8 @@
                 document.getElementById('inquiryModal').classList.add('hidden');
                 document.getElementById('inquiryForm').reset();
                 
-                // Show Success
                 document.getElementById('successMessage').innerHTML = "お問い合わせを受け付けました。<br>担当者より折り返しご連絡いたします。";
-                document.getElementById('successDetailArea').style.display = 'none'; // 詳細エリアは隠す
+                document.getElementById('successDetailArea').style.display = 'none';
                 document.getElementById('successModal').classList.remove('hidden');
                 
                 logEvent('inquiry_submitted');
@@ -545,8 +482,6 @@
             }
         };
 
-
-        // Calendar
         document.getElementById('prevMonth').onclick = () => { viewDate.setMonth(viewDate.getMonth()-1); renderUserCalendar(); };
         document.getElementById('nextMonth').onclick = () => { viewDate.setMonth(viewDate.getMonth()+1); renderUserCalendar(); };
 
@@ -570,13 +505,11 @@
                 const dateObj = new Date(year, month, d);
                 const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
                 
-                // Availability Logic
                 let totalRemaining = 0;
                 let hasEvent = false;
 
                 if (currentSettings.schedule && currentSettings.schedule[dateStr]) {
                     currentSettings.schedule[dateStr].forEach(evt => {
-                        // Check content existence
                         const content = (currentSettings.contents || []).find(c => c.id === evt.contentId);
                         if (!content) return;
 
@@ -598,11 +531,9 @@
                 let isClickable = false;
 
                 if (dateObj < today || !hasEvent) {
-                    // 過去日付 or イベントなし
                     cellClass = 'disabled';
                     symbolHtml = '<span class="text-xs text-slate-300">-</span>';
                 } else {
-                    // 未来 & イベントあり
                     isClickable = true;
                     if (totalRemaining >= 5) {
                         cellClass = 'available';
@@ -611,7 +542,6 @@
                         cellClass = 'available';
                         symbolHtml = '<span class="text-blue-500 font-bold text-xs">○</span>';
                     } else {
-                        // 満席
                         cellClass = 'disabled'; 
                         symbolHtml = '<span class="text-slate-400 font-bold text-xs">×</span>';
                         isClickable = false; 
@@ -625,7 +555,6 @@
                     cell.onclick = () => {
                         selectedDate = dateObj;
                         
-                        // [Log] Date Click
                         logEvent('date_click', { date: dateStr });
 
                         document.querySelectorAll('.calendar-day').forEach(c => c.classList.remove('selected-day'));
@@ -680,7 +609,6 @@
                         btn.onclick = () => {
                             selectedContent = content; selectedStartTime = evt.startTime; selectedSlotCapacity = evt.capacity;
                             
-                            // [Log] Content Selection
                             logEvent('content_selection', { contentId: content.id, name: content.name });
 
                             document.getElementById('bookingForm').style.display = 'block';
@@ -695,7 +623,6 @@
                                 bImg.style.display = 'none';
                             }
 
-                            // --- 詳細情報の表示ロジック ---
                             const detailsContainer = document.getElementById('selectedContentDetails');
                             const descContainer = document.getElementById('detailsDescriptionContainer');
                             const durContainer = document.getElementById('detailsDurationContainer');
@@ -703,7 +630,6 @@
                             
                             let hasDetails = false;
 
-                            // 1. 体験内容
                             if (content.description) {
                                 document.getElementById('selectedDescription').textContent = content.description;
                                 descContainer.classList.remove('hidden');
@@ -712,7 +638,6 @@
                                 descContainer.classList.add('hidden');
                             }
 
-                            // 2. 所要時間
                             if (content.duration) {
                                 document.getElementById('selectedDuration').textContent = content.duration;
                                 durContainer.classList.remove('hidden');
@@ -721,7 +646,6 @@
                                 durContainer.classList.add('hidden');
                             }
 
-                            // 3. 注意事項
                             if (content.notes) {
                                 document.getElementById('selectedNotes').textContent = content.notes;
                                 notesContainer.classList.remove('hidden');
@@ -735,7 +659,6 @@
                             } else {
                                 detailsContainer.classList.add('hidden');
                             }
-                            // ----------------------------------------
                             
                             document.getElementById('inputPhase').classList.remove('hidden');
                             document.getElementById('confirmPhase').classList.add('hidden');
@@ -748,7 +671,6 @@
             container.scrollIntoView({behavior: 'smooth'});
         };
 
-        // Nav Back
         document.getElementById('navBackBtn').onclick = () => {
              document.getElementById('userView').classList.add('hidden');
              document.getElementById('schoolSelectionView').classList.remove('hidden');
@@ -756,20 +678,20 @@
              currentSchoolId = null;
         };
 
-        // Booking Logic
         document.getElementById('userInfoForm').onsubmit = (e) => {
             e.preventDefault();
             
-            // UTMパラメータ取得
             const urlParams = new URLSearchParams(window.location.search);
             const utmSource = urlParams.get('utm_source');
             const utmMedium = urlParams.get('utm_medium');
             const utmCampaign = urlParams.get('utm_campaign');
 
             pendingBookingData = {
+                // --- 予約ID生成を追加 ---
+                bookingId: generateBookingId(),
+                // ---------------------
                 schoolId: currentSchoolId,
                 schoolName: currentSettings.schoolName,
-                // ローカル時間の日付文字列を生成 (YYYY-MM-DD)
                 date: `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`,
                 startTime: selectedStartTime,
                 contentId: selectedContent.id,
@@ -779,7 +701,6 @@
                 email: document.getElementById('email').value,
                 phone: document.getElementById('phone').value,
                 grade: selectedGrade,
-                // 流入経路情報
                 sourceType: 'web',
                 utmSource: utmSource || null,
                 utmMedium: utmMedium || null,
@@ -815,10 +736,10 @@
 
             const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'bookings'), { ...pendingBookingData, createdAt: serverTimestamp() });
             
-            // [Log] Conversion
             logEvent('conversion', { bookingId: docRef.id });
 
             document.getElementById('modal-summary').innerHTML = `
+                <p><strong>予約ID:</strong> ${pendingBookingData.bookingId}</p>
                 <p><strong>教室:</strong> ${pendingBookingData.schoolName}</p>
                 <p><strong>日時:</strong> ${pendingBookingData.date.replace(/-/g,'年').replace(/-/,'月').replace(/-/,'日')} ${pendingBookingData.startTime} [${pendingBookingData.courseName}]</p>
                 <p><strong>保護者様:</strong> ${pendingBookingData.parentName} 様</p>
