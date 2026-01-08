@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ロボットプログラミング体験教室 予約受付</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'M PLUS Rounded 1c', sans-serif; }
+        .calendar-day { transition: all 0.2s; aspect-ratio: 1 / 1; }
+        .available { background-color: #f0fdfa; color: #0d9488; cursor: pointer; font-weight: 700; }
+        .available:hover { opacity: 0.8; transform: scale(1.05); background-color: #ccfbf1; }
+        .selected-day { background-color: #0d9488 !important; color: white !important; transform: scale(1.05); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        .disabled { color: #cbd5e1; background-color: #f8fafc; }
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        .slide-in-up { animation: slideInUp 0.5s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideInUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        #bookingForm, #timeSlotsContainer, #calendarContainer, #inquirySection { display: none; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-10">
+
+    <nav id="globalNav" class="bg-white text-slate-600 p-4 shadow-sm flex justify-between items-center z-50 relative hidden">
+        <div class="flex items-center gap-4">
+            <button id="navBackBtn" class="hover:bg-slate-100 p-2 rounded-full transition hidden text-slate-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            </button>
+            <h1 class="text-xl font-extrabold text-teal-600" id="navTitle">ロボット教室 体験予約</h1>
+        </div>
+    </nav>
+
+    <div id="loadingScreen" class="fixed inset-0 bg-slate-50 z-[100] flex flex-col items-center justify-center">
+        <div class="loader"></div>
+        <p class="mt-4 text-slate-500 font-bold" id="loadingText">読み込み中...</p>
+    </div>
+
+    <div class="container mx-auto max-w-4xl p-4 sm:p-6 mt-4">
+
+        <div id="schoolSelectionView" class="fade-in hidden">
+            <div class="text-center mb-10 mt-4">
+                <h2 class="text-2xl font-bold text-slate-700 mb-2">ご希望の教室を選んでください</h2>
+                <p class="text-slate-500 text-sm">お近くの教室で体験会に参加しよう！</p>
+            </div>
+            <div id="schoolListContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
+                </div>
+        </div>
+
+        <div id="userView" class="max-w-2xl mx-auto hidden fade-in">
+            <header class="text-center mb-8">
+                <div class="w-full h-48 sm:h-64 bg-slate-200 rounded-2xl mb-4 overflow-hidden shadow-lg relative">
+                    <img id="headerImage" src="" alt="教室イメージ" class="w-full h-full object-cover" onerror="this.style.display='none'">
+                    <div class="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
+                         <p class="text-white font-bold text-xl drop-shadow-md"><span id="headerSchoolName"></span>校へようこそ</p>
+                    </div>
+                </div>
+                <h1 id="pageTitleDisplay" class="text-2xl sm:text-3xl font-extrabold text-teal-600 mb-2"></h1>
+                <p id="pageDescriptionDisplay" class="text-slate-600 text-sm"></p>
+                <div id="schoolInfoDisplay" class="mt-4 text-xs text-slate-500 bg-white p-3 rounded-lg inline-block shadow-sm"></div>
+            </header>
+
+            <main class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
+                <div id="step1">
+                    <h2 class="text-lg font-bold mb-4 text-center flex items-center justify-center gap-2">
+                        <span class="bg-teal-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span>
+                        お子様の学年
+                    </h2>
+                    <div id="gradeSelector" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <button data-grade="preschool" class="grade-btn w-full text-md font-bold py-4 px-4 bg-white border-2 border-[#ff91aa] text-[#ff91aa] rounded-xl hover:bg-pink-50 transition-transform hover:scale-105">年中・年長</button>
+                        <button data-grade="grade1_2" class="grade-btn w-full text-md font-bold py-4 px-4 bg-white border-2 border-[#ffac2d] text-[#ffac2d] rounded-xl hover:bg-orange-50 transition-transform hover:scale-105">小1～小2</button>
+                        <button data-grade="grade3_plus" class="grade-btn w-full text-md font-bold py-4 px-4 bg-white border-2 border-[#00b4dc] text-[#00b4dc] rounded-xl hover:bg-blue-50 transition-transform hover:scale-105">小3以上</button>
+                    </div>
+                </div>
+
+                <div id="calendarContainer" class="mt-10">
+                    <h2 class="text-lg font-bold mb-4 text-center flex items-center justify-center gap-2">
+                        <span class="bg-teal-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">2</span>
+                        日程選択
+                    </h2>
+                    <div class="flex items-center justify-between mb-4 px-4">
+                        <button id="prevMonth" class="px-3 py-1 bg-slate-100 rounded-md hover:bg-slate-200 text-slate-600 font-bold">&lt;</button>
+                        <h3 id="calendarTitle" class="text-lg font-bold text-slate-700"></h3>
+                        <button id="nextMonth" class="px-3 py-1 bg-slate-100 rounded-md hover:bg-slate-200 text-slate-600 font-bold">&gt;</button>
+                    </div>
+                    <div id="calendarGrid" class="grid grid-cols-7 gap-1 text-center text-sm">
+                        <div class="font-bold text-red-400 py-2">日</div>
+                        <div class="font-bold text-slate-500 py-2">月</div>
+                        <div class="font-bold text-slate-500 py-2">火</div>
+                        <div class="font-bold text-slate-500 py-2">水</div>
+                        <div class="font-bold text-slate-500 py-2">木</div>
+                        <div class="font-bold text-slate-500 py-2">金</div>
+                        <div class="font-bold text-blue-400 py-2">土</div>
+                    </div>
+                    <div class="mt-3 text-xs text-center text-slate-500 flex justify-center gap-4">
+                        <span class="flex items-center"><span class="text-red-500 font-bold mr-1">◎</span> 余裕あり</span>
+                        <span class="flex items-center"><span class="text-blue-500 font-bold mr-1">○</span> 空きあり</span>
+                        <span class="flex items-center"><span class="text-slate-400 font-bold mr-1">×</span> 満席</span>
+                    </div>
+                </div>
+
+                <div id="timeSlotsContainer" class="mt-10"></div>
+
+                <div id="inquirySection" class="mt-12 pt-8 border-t border-slate-100 text-center">
+                    <p class="text-sm text-slate-500 mb-3 font-bold">ご希望の日程が見つからない場合</p>
+                    <button id="openInquiryModalBtn" class="inline-flex items-center justify-center px-6 py-3 border-2 border-slate-300 text-slate-600 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-400 transition font-bold text-sm shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        日程リクエスト・お問い合わせ
+                    </button>
+                    <p class="text-xs text-slate-400 mt-2">※ご希望の曜日や時間帯をお知らせください</p>
+                </div>
+                
+                <div id="bookingForm" class="mt-10 pt-6 border-t border-slate-100">
+                      <div class="bg-teal-50 p-5 rounded-xl mb-6 border border-teal-100 flex flex-col sm:flex-row gap-4 items-center">
+                        <img id="bookingContentImage" src="" alt="体験イメージ" class="w-24 h-24 object-cover rounded-lg bg-slate-200 hidden sm:block" onerror="this.style.display='none'">
+                        <div class="flex-1 text-center sm:text-left">
+                            <h3 class="font-bold text-teal-800 mb-1">選択中の体験会</h3>
+                            <p class="text-sm text-teal-700 font-bold mb-1" id="selectedSlotInfo"></p>
+                            <p class="text-lg font-black text-teal-600" id="selectedPriceInfo"></p>
+                        </div>
+                    </div>
+
+                    <div id="selectedContentDetails" class="bg-white border border-slate-200 rounded-xl p-6 mb-8 hidden shadow-sm">
+                        <div id="detailsDescriptionContainer" class="mb-4 hidden">
+                            <h4 class="text-sm font-bold text-slate-700 mb-2 border-l-4 border-teal-500 pl-2">体験内容</h4>
+                            <p id="selectedDescription" class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap"></p>
+                        </div>
+                        
+                        <div id="detailsDurationContainer" class="mb-4 hidden flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span class="text-sm font-bold text-slate-700 mr-2">所要時間:</span>
+                            <span id="selectedDuration" class="text-sm text-slate-600"></span>
+                        </div>
+
+                        <div id="detailsNotesContainer" class="hidden">
+                            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                <h4 class="text-xs font-bold text-yellow-800 mb-1 flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                    注意事項・持ち物
+                                </h4>
+                                <p id="selectedNotes" class="text-xs text-yellow-900 whitespace-pre-wrap leading-relaxed"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="inputPhase">
+                        <h2 class="text-lg font-bold mb-4 text-center flex items-center justify-center gap-2">
+                            <span class="bg-teal-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">3</span>
+                            お客様情報の入力
+                        </h2>
+                        <form id="userInfoForm" class="space-y-4 max-w-md mx-auto">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">保護者様のお名前</label>
+                                <input type="text" id="parentName" required class="w-full p-3 border border-slate-300 rounded-lg text-sm" placeholder="例: 山田 太郎">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">メールアドレス</label>
+                                <input type="email" id="email" required class="w-full p-3 border border-slate-300 rounded-lg text-sm" placeholder="example@email.com">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">電話番号</label>
+                                <input type="tel" id="phone" required class="w-full p-3 border border-slate-300 rounded-lg text-sm" placeholder="090-1234-5678">
+                            </div>
+                             <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">お子様のお名前 (かな)</label>
+                                <input type="text" id="childName" required class="w-full p-3 border border-slate-300 rounded-lg text-sm" placeholder="やまだ はなこ">
+                            </div>
+                            <div class="pt-4">
+                                <button type="submit" class="w-full text-lg font-bold py-4 px-6 bg-teal-500 text-white rounded-xl hover:bg-teal-600 shadow-lg transform active:scale-95 transition">確認画面へ</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="confirmPhase" class="hidden max-w-md mx-auto">
+                        <h2 class="text-lg font-bold mb-4 text-center">入力内容の確認</h2>
+                        <div class="bg-white border border-slate-200 p-6 rounded-xl shadow-sm mb-6 space-y-4 text-sm">
+                            <div class="border-b pb-2"><p class="text-xs text-slate-400">保護者様のお名前</p><p class="font-bold text-slate-800" id="confirmParentName"></p></div>
+                            <div class="border-b pb-2"><p class="text-xs text-slate-400">メールアドレス</p><p class="font-bold text-slate-800" id="confirmEmail"></p></div>
+                            <div class="border-b pb-2"><p class="text-xs text-slate-400">電話番号</p><p class="font-bold text-slate-800" id="confirmPhone"></p></div>
+                            <div><p class="text-xs text-slate-400">お子様のお名前</p><p class="font-bold text-slate-800" id="confirmChildName"></p></div>
+                        </div>
+                        <div class="flex flex-col gap-3">
+                            <button type="button" id="confirmBookingBtn" class="w-full text-lg font-bold py-4 px-6 bg-orange-500 text-white rounded-xl hover:bg-orange-600 shadow-lg transform active:scale-95 transition">予約を確定する</button>
+                            <button type="button" id="backToInputBtn" class="w-full text-sm font-bold py-3 px-6 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200">修正する</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="inquiryModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60] hidden">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h3 class="text-lg font-bold mb-2 text-slate-700">日程リクエスト・お問い合わせ</h3>
+            <p class="text-xs text-slate-500 mb-4">
+                ご希望の日程や、ご質問がございましたら下記フォームよりお送りください。<br>
+                担当者より折り返しご連絡いたします。
+            </p>
+            <form id="inquiryForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">保護者様のお名前</label>
+                    <input type="text" id="inqName" class="w-full p-3 border border-slate-300 rounded-lg text-sm" required placeholder="例: 山田 太郎">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">メールアドレス</label>
+                    <input type="email" id="inqEmail" class="w-full p-3 border border-slate-300 rounded-lg text-sm" required placeholder="example@email.com">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">電話番号</label>
+                    <input type="tel" id="inqPhone" class="w-full p-3 border border-slate-300 rounded-lg text-sm" required placeholder="090-1234-5678">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">ご希望の曜日・時間など</label>
+                    <textarea id="inqContent" class="w-full p-3 border border-slate-300 rounded-lg text-sm h-24" required placeholder="例: 平日の17時以降、または土曜日の午前中を希望します。"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('inquiryModal').classList.add('hidden')" class="px-4 py-2 bg-slate-100 rounded text-sm font-bold text-slate-600">キャンセル</button>
+                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-700 shadow">送信する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full text-center slide-in-up">
+            <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">送信完了</h2>
+            <p class="text-slate-600 mb-4" id="successMessage">ご予約ありがとうございます！<br>内容確認メールをお送りしました。</p>
+            <div class="bg-slate-50 p-4 rounded-lg text-left mb-6" id="successDetailArea">
+                <h4 class="font-bold mb-2 border-b border-slate-200 pb-2 text-slate-700">予約内容</h4>
+                <div id="modal-summary" class="text-sm space-y-2 text-slate-600"></div>
+            </div>
+            <button id="closeModal" class="w-full py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition">閉じる</button>
+        </div>
+    </div>
+
+   <script type="module">
+    // バージョンを 12.7.0 に更新
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, addDoc, collection, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+
+    // --- 設定エリア: 除外したいIPアドレス ---
+    // カウントしたくないIPアドレスをここに追加してください
+    const EXCLUDED_IPS = [
+        "137.83.213.235",   // 社内
+        "203.0.113.10"   // 自宅
+    ];
+
+    const GRADE_CONFIG = {
+        preschool: { bg: 'bg-[#ff91aa]', text: 'text-white', btnBorder: 'border-[#ff91aa]', btnText: 'text-[#ff91aa]', btnHover: 'hover:bg-pink-50' },
+        grade1_2: { bg: 'bg-[#ffac2d]', text: 'text-white', btnBorder: 'border-[#ffac2d]', btnText: 'text-[#ffac2d]', btnHover: 'hover:bg-orange-50' },
+        grade3_plus: { bg: 'bg-[#00b4dc]', text: 'text-white', btnBorder: 'border-[#00b4dc]', btnText: 'text-[#00b4dc]', btnHover: 'hover:bg-blue-50' }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        let auth, db, user, appId = 'robot-school-booking-v4';
+        let schools = [], currentSchoolId = null, currentSettings = null, allBookings = [];
+        let selectedGrade = null, selectedDate = null, selectedContent = null, selectedStartTime = "", selectedSlotCapacity = 0;
+        let viewDate = new Date(); viewDate.setDate(1);
+        let pendingBookingData = null;
+        let hasLoggedFormInput = false; 
+        let hasLoggedPageView = false;
+        
+        // IP判定用のPromise
+        let ipCheckPromise = null;
+
+        // 外部サービスを使ってIPを取得する関数
+        const getIpPromise = () => {
+             if (!ipCheckPromise) {
+                 // 外部API (api.ipify.org) を使用してIPアドレスを取得
+                 ipCheckPromise = fetch('https://api.ipify.org?format=json')
+                    .then(res => res.json())
+                    .then(data => data.ip)
+                    .catch(e => {
+                        console.warn("IP取得失敗:", e);
+                        return null; // 失敗時はnullを返す
+                    });
+             }
+             return ipCheckPromise;
+        };
+
+        const initFirebase = async () => {
+            try {
+                // すぐにIP取得を開始（非同期）
+                getIpPromise();
+
+                let firebaseConfig = {
+                    apiKey: "AIzaSyBYjDRWH0ldsP8WVHa9o8HcfGJ2XF9pdzU", 
+                    authDomain: "robot-school-booking.firebaseapp.com", 
+                    projectId: "robot-school-booking", 
+                    appId: "1:443474003538:web:e3a17bd422bcee23f6418b"
+                };
+
+                if (typeof __firebase_config !== 'undefined') {
+                    firebaseConfig = JSON.parse(__firebase_config);
+                }
+                if (typeof __app_id !== 'undefined') {
+                    appId = __app_id;
+                }
+
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                onAuthStateChanged(auth, async (u) => {
+                    user = u;
+                    if (u) {
+                        const params = new URLSearchParams(window.location.search);
+                        const targetSchoolId = params.get('school');
+                        
+                        if (targetSchoolId) {
+                            loadSchoolData(targetSchoolId, true);
+                        } else {
+                            loadSchoolList();
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Firebase Init Error:", e);
+                document.getElementById('loadingText').textContent = "エラーが発生しました。リロードしてください。";
+            }
+        };
+
+        // --- Logger Function (IP除外機能付き) ---
+        const logEvent = async (eventName, details = {}) => {
+            if (!currentSchoolId) return;
+            
+            try {
+                // IPアドレスの判定が終わるまで待機
+                const currentIp = await getIpPromise();
+
+                // 除外リストに含まれていたらログ送信をスキップ
+                if (currentIp && EXCLUDED_IPS.includes(currentIp)) {
+                    console.log(`[Log Skipped] Access from excluded IP: ${currentIp} (Event: ${eventName})`);
+                    return;
+                }
+
+                // ログ送信
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'access_logs'), {
+                    schoolId: currentSchoolId,
+                    event: eventName,
+                    ...details,
+                    userAgent: navigator.userAgent,
+                    timestamp: serverTimestamp()
+                });
+            } catch (e) {
+                console.warn("Logging failed", e);
+            }
+        };
+
+        const loadSchoolList = () => {
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'schools'), (snap) => {
+                schools = [];
+                snap.forEach(doc => schools.push({ id: doc.id, ...doc.data() }));
+                renderSchoolList();
+                document.getElementById('loadingScreen').classList.add('hidden');
+                document.getElementById('schoolSelectionView').classList.remove('hidden');
+            });
+        };
+
+        const renderSchoolList = () => {
+            const container = document.getElementById('schoolListContainer');
+            container.innerHTML = '';
+            schools.forEach(school => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition cursor-pointer border border-slate-100 flex flex-col items-center justify-center gap-4 group";
+                card.innerHTML = `
+                    <div class="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center text-teal-600 group-hover:bg-teal-500 group-hover:text-white transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-700">${school.name}校</h3>
+                    <button class="mt-2 text-teal-600 font-bold underline decoration-2 underline-offset-4 group-hover:text-teal-700">予約する</button>
+                `;
+                card.onclick = () => loadSchoolData(school.id);
+                container.appendChild(card);
+            });
+        };
+
+        const loadSchoolData = (schoolId, isDirectAccess = false) => {
+            currentSchoolId = schoolId;
+            document.getElementById('schoolSelectionView').classList.add('hidden');
+            document.getElementById('loadingScreen').classList.remove('hidden');
+            
+            // Load Settings
+            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', schoolId), (snap) => {
+                if (!snap.exists()) {
+                    alert("指定された校舎が見つかりません。");
+                    document.getElementById('loadingScreen').classList.add('hidden');
+                    document.getElementById('schoolSelectionView').classList.remove('hidden');
+                    return;
+                }
+                
+                currentSettings = snap.data() || { schoolName: '未設定', contents: [], schedule: {} };
+                renderUserView();
+                document.getElementById('loadingScreen').classList.add('hidden');
+                document.getElementById('userView').classList.remove('hidden');
+                
+                // [Log] Page View (First load only)
+                if (!hasLoggedPageView) {
+                    logEvent('page_view');
+                    hasLoggedPageView = true;
+                }
+                
+                document.getElementById('globalNav').classList.remove('hidden');
+                if (isDirectAccess) {
+                    document.getElementById('navBackBtn').classList.add('hidden');
+                } else {
+                    document.getElementById('navBackBtn').classList.remove('hidden');
+                }
+                
+                // Setup Form Input Tracking
+                setupFormTracking();
+            });
+            // Load Bookings for capacity check
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'bookings'), (snap) => {
+                allBookings = [];
+                snap.forEach(doc => { if(doc.data().schoolId === schoolId) allBookings.push(doc.data()); });
+                // Re-render calendar if bookings update to refresh availability marks
+                if(document.getElementById('calendarContainer').style.display !== 'none') {
+                      renderUserCalendar();
+                }
+                if(selectedDate) renderTimeSlots(selectedDate);
+            });
+        };
+        
+        const setupFormTracking = () => {
+            const inputs = document.querySelectorAll('#userInfoForm input');
+            // Do not reset hasLoggedFormInput here to prevent re-logging on snapshot update
+            inputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    if (!hasLoggedFormInput) {
+                        logEvent('form_input');
+                        hasLoggedFormInput = true;
+                    }
+                }, { once: true });
+            });
+        };
+
+        const renderUserView = () => {
+            const s = currentSettings;
+            document.getElementById('navTitle').textContent = `${s.schoolName}校 予約`;
+            document.getElementById('headerSchoolName').textContent = s.schoolName;
+            document.getElementById('pageTitleDisplay').textContent = s.pageTitle || '体験教室予約';
+            document.getElementById('pageDescriptionDisplay').textContent = s.pageDescription || '';
+            
+            const img = document.getElementById('headerImage');
+            const defaultImgUrl = 'https://images.unsplash.com/photo-1581092921461-eab62e97a782?q=80&w=2070';
+            img.src = s.headerImageUrl || defaultImgUrl;
+            img.style.display = 'block';
+
+            document.getElementById('schoolInfoDisplay').textContent = `${s.address || ''} | ${s.phoneNumber || ''}`;
+        };
+
+        // Grade Select
+        document.getElementById('gradeSelector').addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                selectedGrade = e.target.dataset.grade;
+                
+                // [Log] Grade Selection
+                logEvent('grade_selection', { grade: selectedGrade });
+
+                document.querySelectorAll('#gradeSelector button').forEach(btn => {
+                    const c = GRADE_CONFIG[btn.dataset.grade];
+                    btn.className = `grade-btn w-full text-md font-bold py-4 px-4 bg-white border-2 ${c.btnBorder} ${c.btnText} rounded-xl ${c.btnHover} transition-transform hover:scale-105`;
+                });
+                const conf = GRADE_CONFIG[selectedGrade];
+                e.target.className = `grade-btn w-full text-md font-bold py-4 px-4 border-2 ${conf.bg} ${conf.text} ${conf.btnBorder} rounded-xl shadow-lg transform scale-105`;
+                
+                document.getElementById('calendarContainer').style.display = 'block';
+                document.getElementById('calendarContainer').scrollIntoView({behavior: 'smooth'});
+                renderUserCalendar();
+                document.getElementById('timeSlotsContainer').innerHTML = '';
+                document.getElementById('bookingForm').style.display = 'none';
+                document.getElementById('selectedContentDetails').classList.add('hidden'); // 詳細を隠す
+                document.getElementById('inquirySection').style.display = 'block'; // お問い合わせ表示
+            }
+        });
+
+        // Inquiry Modal Logic
+        document.getElementById('openInquiryModalBtn').onclick = () => {
+             document.getElementById('inquiryModal').classList.remove('hidden');
+        };
+
+        document.getElementById('inquiryForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = "送信中...";
+
+            // UTMパラメータ取得 (問い合わせにも付与)
+            const urlParams = new URLSearchParams(window.location.search);
+            const utmSource = urlParams.get('utm_source');
+            const utmMedium = urlParams.get('utm_medium');
+            const utmCampaign = urlParams.get('utm_campaign');
+
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'inquiries'), {
+                    schoolId: currentSchoolId,
+                    schoolName: currentSettings.schoolName,
+                    name: document.getElementById('inqName').value,
+                    email: document.getElementById('inqEmail').value,
+                    phone: document.getElementById('inqPhone').value,
+                    preferredSchedule: document.getElementById('inqContent').value,
+                    grade: selectedGrade || 'unselected',
+                    // 流入経路情報
+                    sourceType: 'web_inquiry',
+                    utmSource: utmSource || null,
+                    utmMedium: utmMedium || null,
+                    utmCampaign: utmCampaign || null,
+                    createdAt: serverTimestamp()
+                });
+                
+                document.getElementById('inquiryModal').classList.add('hidden');
+                document.getElementById('inquiryForm').reset();
+                
+                // Show Success
+                document.getElementById('successMessage').innerHTML = "お問い合わせを受け付けました。<br>担当者より折り返しご連絡いたします。";
+                document.getElementById('successDetailArea').style.display = 'none'; // 詳細エリアは隠す
+                document.getElementById('successModal').classList.remove('hidden');
+                
+                logEvent('inquiry_submitted');
+
+            } catch (err) {
+                alert("送信に失敗しました。時間をおいて再度お試しください。");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "送信する";
+            }
+        };
+
+
+        // Calendar
+        document.getElementById('prevMonth').onclick = () => { viewDate.setMonth(viewDate.getMonth()-1); renderUserCalendar(); };
+        document.getElementById('nextMonth').onclick = () => { viewDate.setMonth(viewDate.getMonth()+1); renderUserCalendar(); };
+
+        const renderUserCalendar = () => {
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth();
+            document.getElementById('calendarTitle').textContent = `${year}年 ${month + 1}月`;
+            const grid = document.getElementById('calendarGrid');
+            while(grid.children.length > 7) grid.removeChild(grid.lastChild);
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const today = new Date(); today.setHours(0,0,0,0);
+
+            for(let i=0; i<firstDay; i++) grid.appendChild(document.createElement('div'));
+
+            for(let d=1; d<=daysInMonth; d++) {
+                const cell = document.createElement('div');
+                cell.className = 'calendar-day flex flex-col items-center justify-center rounded-lg transition border border-transparent';
+                
+                const dateObj = new Date(year, month, d);
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                
+                // Availability Logic
+                let totalRemaining = 0;
+                let hasEvent = false;
+
+                if (currentSettings.schedule && currentSettings.schedule[dateStr]) {
+                    currentSettings.schedule[dateStr].forEach(evt => {
+                        // Check content existence
+                        const content = (currentSettings.contents || []).find(c => c.id === evt.contentId);
+                        if (!content) return;
+
+                        const targetGrades = evt.grades || (content.grades || []) || [];
+                        
+                        if (targetGrades.includes(selectedGrade)) {
+                            hasEvent = true;
+                            const bookedCount = allBookings.filter(b => 
+                                b.date === dateStr && b.startTime === evt.startTime && b.contentId === evt.contentId
+                            ).length;
+                            const remaining = Math.max(0, parseInt(evt.capacity) - bookedCount);
+                            totalRemaining += remaining;
+                        }
+                    });
+                }
+                
+                let symbolHtml = '';
+                let cellClass = '';
+                let isClickable = false;
+
+                if (dateObj < today || !hasEvent) {
+                    // 過去日付 or イベントなし
+                    cellClass = 'disabled';
+                    symbolHtml = '<span class="text-xs text-slate-300">-</span>';
+                } else {
+                    // 未来 & イベントあり
+                    isClickable = true;
+                    if (totalRemaining >= 5) {
+                        cellClass = 'available';
+                        symbolHtml = '<span class="text-red-500 font-bold text-xs">◎</span>';
+                    } else if (totalRemaining > 0) {
+                        cellClass = 'available';
+                        symbolHtml = '<span class="text-blue-500 font-bold text-xs">○</span>';
+                    } else {
+                        // 満席
+                        cellClass = 'disabled'; 
+                        symbolHtml = '<span class="text-slate-400 font-bold text-xs">×</span>';
+                        isClickable = false; 
+                    }
+                }
+
+                cell.classList.add(cellClass);
+                cell.innerHTML = `<span class="text-sm font-bold leading-tight">${d}</span>${symbolHtml}`;
+
+                if (isClickable) {
+                    cell.onclick = () => {
+                        selectedDate = dateObj;
+                        
+                        // [Log] Date Click
+                        logEvent('date_click', { date: dateStr });
+
+                        document.querySelectorAll('.calendar-day').forEach(c => c.classList.remove('selected-day'));
+                        cell.classList.add('selected-day');
+                        renderTimeSlots(selectedDate);
+                    };
+                }
+
+                grid.appendChild(cell);
+            }
+        };
+
+        const renderTimeSlots = (date) => {
+            const container = document.getElementById('timeSlotsContainer');
+            container.innerHTML = '';
+            container.style.display = 'block';
+            
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+            const title = document.createElement('h3');
+            title.className = "text-lg font-bold mb-4 text-center text-slate-700";
+            title.textContent = `${date.getMonth()+1}月${date.getDate()}日 (${['日','月','火','水','木','金','土'][date.getDay()]}) の開催枠`;
+            container.appendChild(title);
+            
+            const list = document.createElement('div');
+            list.className = "flex flex-col gap-3 max-w-sm mx-auto";
+            
+            const events = (currentSettings.schedule[dateStr] || []).filter(evt => {
+                const content = (currentSettings.contents || []).find(c => c.id === evt.contentId);
+                if(!content) return false;
+                const targetGrades = evt.grades || (content.grades || []) || [];
+                return targetGrades.includes(selectedGrade);
+            }).sort((a,b) => a.startTime.localeCompare(b.startTime));
+
+            if(events.length === 0) list.innerHTML = `<p class="text-center text-slate-400">空き枠がありません</p>`;
+            else {
+                events.forEach(evt => {
+                    const content = currentSettings.contents.find(c => c.id === evt.contentId);
+                    const booked = allBookings.filter(b => b.date === dateStr && b.startTime === evt.startTime && b.contentId === evt.contentId).length;
+                    const remaining = Math.max(0, parseInt(evt.capacity) - booked);
+                    const isFull = remaining <= 0;
+                    
+                    const btn = document.createElement('button');
+                    const conf = GRADE_CONFIG[selectedGrade];
+                    
+                    if(isFull) {
+                        btn.className = "p-4 rounded-xl bg-slate-100 text-slate-400 cursor-not-allowed border";
+                        btn.innerHTML = `<span class="font-bold">${evt.startTime}</span> ${content.name} <span class="float-right text-xs bg-red-100 text-red-500 px-2 py-1 rounded">満席</span>`;
+                        btn.disabled = true;
+                    } else {
+                        btn.className = `p-4 rounded-xl border-2 ${conf.btnBorder} ${conf.btnText} bg-white hover:brightness-95 transition text-left shadow-sm`;
+                        btn.innerHTML = `<span class="font-bold text-lg">${evt.startTime}</span> <span class="text-sm font-bold">${content.name}</span> <span class="float-right text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold">残 ${remaining}</span>`;
+                        btn.onclick = () => {
+                            selectedContent = content; selectedStartTime = evt.startTime; selectedSlotCapacity = evt.capacity;
+                            
+                            // [Log] Content Selection
+                            logEvent('content_selection', { contentId: content.id, name: content.name });
+
+                            document.getElementById('bookingForm').style.display = 'block';
+                            document.getElementById('bookingForm').scrollIntoView({behavior:'smooth'});
+                            document.getElementById('selectedSlotInfo').textContent = `${dateStr.replace(/-/g,'/')} ${evt.startTime}`;
+                            document.getElementById('selectedPriceInfo').textContent = `¥${Number(content.price).toLocaleString()}`;
+                            const bImg = document.getElementById('bookingContentImage');
+                            if(content.imageUrl) {
+                                bImg.src = content.imageUrl;
+                                bImg.style.display = 'block';
+                            } else {
+                                bImg.style.display = 'none';
+                            }
+
+                            // --- 詳細情報の表示ロジック ---
+                            const detailsContainer = document.getElementById('selectedContentDetails');
+                            const descContainer = document.getElementById('detailsDescriptionContainer');
+                            const durContainer = document.getElementById('detailsDurationContainer');
+                            const notesContainer = document.getElementById('detailsNotesContainer');
+                            
+                            let hasDetails = false;
+
+                            // 1. 体験内容
+                            if (content.description) {
+                                document.getElementById('selectedDescription').textContent = content.description;
+                                descContainer.classList.remove('hidden');
+                                hasDetails = true;
+                            } else {
+                                descContainer.classList.add('hidden');
+                            }
+
+                            // 2. 所要時間
+                            if (content.duration) {
+                                document.getElementById('selectedDuration').textContent = content.duration;
+                                durContainer.classList.remove('hidden');
+                                hasDetails = true;
+                            } else {
+                                durContainer.classList.add('hidden');
+                            }
+
+                            // 3. 注意事項
+                            if (content.notes) {
+                                document.getElementById('selectedNotes').textContent = content.notes;
+                                notesContainer.classList.remove('hidden');
+                                hasDetails = true;
+                            } else {
+                                notesContainer.classList.add('hidden');
+                            }
+
+                            if (hasDetails) {
+                                detailsContainer.classList.remove('hidden');
+                            } else {
+                                detailsContainer.classList.add('hidden');
+                            }
+                            // ----------------------------------------
+                            
+                            document.getElementById('inputPhase').classList.remove('hidden');
+                            document.getElementById('confirmPhase').classList.add('hidden');
+                        };
+                    }
+                    list.appendChild(btn);
+                });
+            }
+            container.appendChild(list);
+            container.scrollIntoView({behavior: 'smooth'});
+        };
+
+        // Nav Back
+        document.getElementById('navBackBtn').onclick = () => {
+             document.getElementById('userView').classList.add('hidden');
+             document.getElementById('schoolSelectionView').classList.remove('hidden');
+             document.getElementById('navBackBtn').classList.add('hidden');
+             currentSchoolId = null;
+        };
+
+        // Booking Logic
+        document.getElementById('userInfoForm').onsubmit = (e) => {
+            e.preventDefault();
+            
+            // UTMパラメータ取得
+            const urlParams = new URLSearchParams(window.location.search);
+            const utmSource = urlParams.get('utm_source');
+            const utmMedium = urlParams.get('utm_medium');
+            const utmCampaign = urlParams.get('utm_campaign');
+
+            pendingBookingData = {
+                schoolId: currentSchoolId,
+                schoolName: currentSettings.schoolName,
+                // ローカル時間の日付文字列を生成 (YYYY-MM-DD)
+                date: `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`,
+                startTime: selectedStartTime,
+                contentId: selectedContent.id,
+                courseName: selectedContent.name,
+                parentName: document.getElementById('parentName').value,
+                childName: document.getElementById('childName').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                grade: selectedGrade,
+                // 流入経路情報
+                sourceType: 'web',
+                utmSource: utmSource || null,
+                utmMedium: utmMedium || null,
+                utmCampaign: utmCampaign || null
+            };
+            document.getElementById('confirmParentName').textContent = pendingBookingData.parentName;
+            document.getElementById('confirmEmail').textContent = pendingBookingData.email;
+            document.getElementById('confirmPhone').textContent = pendingBookingData.phone;
+            document.getElementById('confirmChildName').textContent = pendingBookingData.childName;
+            
+            document.getElementById('inputPhase').classList.add('hidden');
+            document.getElementById('confirmPhase').classList.remove('hidden');
+            document.getElementById('confirmPhase').scrollIntoView({behavior:'smooth'});
+        };
+
+        document.getElementById('backToInputBtn').onclick = () => {
+             document.getElementById('confirmPhase').classList.add('hidden');
+             document.getElementById('inputPhase').classList.remove('hidden');
+        };
+
+        document.getElementById('confirmBookingBtn').onclick = async () => {
+            const btn = document.getElementById('confirmBookingBtn');
+            btn.disabled = true;
+            btn.textContent = "送信中...";
+            
+            const count = allBookings.filter(b => b.date === pendingBookingData.date && b.startTime === pendingBookingData.startTime && b.contentId === pendingBookingData.contentId).length;
+            if(count >= selectedSlotCapacity) {
+                alert('申し訳ありません、直前で満席になりました。');
+                renderTimeSlots(selectedDate);
+                document.getElementById('bookingForm').style.display = 'none';
+                return;
+            }
+
+            const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'bookings'), { ...pendingBookingData, createdAt: serverTimestamp() });
+            
+            // [Log] Conversion
+            logEvent('conversion', { bookingId: docRef.id });
+
+            document.getElementById('modal-summary').innerHTML = `
+                <p><strong>教室:</strong> ${pendingBookingData.schoolName}</p>
+                <p><strong>日時:</strong> ${pendingBookingData.date.replace(/-/g,'年').replace(/-/,'月').replace(/-/,'日')} ${pendingBookingData.startTime} [${pendingBookingData.courseName}]</p>
+                <p><strong>保護者様:</strong> ${pendingBookingData.parentName} 様</p>
+            `;
+            document.getElementById('successMessage').innerHTML = "ご予約ありがとうございます！<br>内容確認メールをお送りしました。";
+            document.getElementById('successDetailArea').style.display = 'block';
+            document.getElementById('successModal').classList.remove('hidden');
+            btn.disabled = false;
+            btn.textContent = "予約を確定する";
+        };
+
+        document.getElementById('closeModal').onclick = () => {
+            document.getElementById('successModal').classList.add('hidden');
+            document.getElementById('calendarContainer').style.display = 'none';
+            document.getElementById('timeSlotsContainer').style.display = 'none';
+            document.getElementById('bookingForm').style.display = 'none';
+            document.getElementById('userInfoForm').reset();
+            document.querySelectorAll('#gradeSelector button').forEach(btn => {
+                const conf = GRADE_CONFIG[btn.dataset.grade];
+                btn.className = `grade-btn w-full text-md font-bold py-4 px-4 bg-white border-2 ${conf.btnBorder} ${conf.btnText} rounded-xl ${conf.btnHover} transition-transform hover:scale-105`;
+            });
+            document.getElementById('inquirySection').style.display = 'none';
+            window.scrollTo({top:0, behavior:'smooth'});
+        };
+
+        initFirebase();
+    });
+    </script>
+</body>
+</html>
