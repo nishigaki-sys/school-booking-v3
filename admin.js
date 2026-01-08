@@ -69,6 +69,17 @@ const fetchIpAddress = async () => {
     }
 };
 
+// --- ID生成関数 (追加) ---
+const generateBookingId = () => {
+    const now = new Date();
+    const dateStr = now.getFullYear().toString() + 
+                    String(now.getMonth() + 1).padStart(2, '0') + 
+                    String(now.getDate()).padStart(2, '0');
+    // ランダムな6桁の英数字（大文字）
+    const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `BK-${dateStr}-${randomStr}`;
+};
+
 const initFirebase = async () => {
     // Main App Init
     app = initializeApp(firebaseConfig);
@@ -1023,6 +1034,8 @@ const setupSchoolAdminEvents = () => {
 
         try {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'bookings'), {
+                // --- 自動ID生成 ---
+                bookingId: generateBookingId(),
                 schoolId: currentSchoolId,
                 schoolName: currentSettings.schoolName,
                 date: date,
@@ -1669,8 +1682,14 @@ function renderBookingTable() {
             }
         }
 
+        // --- ID表示を追加 (開催日時と併記) ---
+        const bookingIdDisplay = b.bookingId ? `<div class="text-[10px] text-slate-400 font-mono mb-1">ID: ${b.bookingId}</div>` : '';
+
         tr.innerHTML = `
-            <td class="px-6 py-4">${b.date} ${b.startTime}</td>
+            <td class="px-6 py-4">
+                ${bookingIdDisplay}
+                <div>${b.date} ${b.startTime}</div>
+            </td>
             <td class="px-6 py-4">${b.courseName}</td>
             <td class="px-6 py-4 text-center"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">確定</span></td>
             <td class="px-6 py-4 text-center">${sourceBadge}</td>
