@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ロボット教室 管理コンソール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'M PLUS Rounded 1c', sans-serif; background-color: #f1f5f9; }
+        .timeline-container { position: relative; height: 500px; background-color: #fff; border-radius: 0.5rem; overflow-y: auto; border: 1px solid #cbd5e1; }
+        .timeline-event-block { position: absolute; left: 50px; right: 10px; border-radius: 4px; color: white; font-size: 0.75rem; padding: 4px 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; z-index: 10; transition: all 0.1s; }
+        .timeline-event-block:hover { z-index: 20; transform: scale(1.02); opacity: 0.9; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .dashboard-event-item { font-size: 0.75rem; margin-bottom: 2px; padding: 2px 4px; border-radius: 3px; color: white; white-space: nowrap; overflow: hidden; cursor: pointer; }
+        /* スクロールバーのカスタマイズ */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body>
+
+    <div id="loginView" class="min-h-screen flex items-center justify-center bg-slate-800">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm">
+            <h1 class="text-2xl font-extrabold text-center text-slate-700 mb-2">管理者ログイン</h1>
+            <p class="text-xs text-center text-slate-400 mb-4">ロボットプログラミング教室 管理システム</p>
+            
+            <div class="bg-slate-100 p-2 rounded text-center mb-6 border border-slate-200">
+                <p class="text-[10px] text-slate-500">あなたのIPアドレス</p>
+                <p id="currentIpDisplay" class="text-xs font-mono font-bold text-slate-700">取得中...</p>
+            </div>
+
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-600">メールアドレス</label>
+                    <input type="email" id="adminEmail" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="admin@example.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-600">パスワード</label>
+                    <input type="password" id="adminPassword" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="••••••••">
+                </div>
+                <button type="submit" id="loginBtn" class="w-full py-3 bg-slate-700 text-white font-bold rounded-lg hover:bg-slate-600 transition">ログイン</button>
+            </form>
+            <p class="text-[10px] text-center text-slate-400 mt-4">※登録されたユーザー情報でログインしてください</p>
+        </div>
+    </div>
+
+    <div id="adminMain" class="hidden min-h-screen">
+        <nav class="bg-white border-b border-slate-200 sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <span class="text-xl font-extrabold text-slate-800 mr-4">管理コンソール</span>
+                        <span id="currentSchoolNameDisplay" class="text-sm font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full hidden"></span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span id="loginUserInfo" class="text-xs font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-100 hidden sm:inline-block"></span>
+                        <a id="previewPageBtn" href="#" target="_blank" class="text-sm text-teal-600 hover:text-teal-800 hover:underline hidden flex items-center gap-1 font-bold">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                            予約ページ確認
+                        </a>
+                        <button id="backToSchoolSelectBtn" class="text-sm text-blue-600 hover:underline hidden">校舎選択へ戻る</button>
+                        <button id="logoutBtn" class="text-sm font-bold text-red-500 hover:bg-red-50 px-3 py-1 rounded">ログアウト</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div id="schoolSelectionView" class="max-w-6xl mx-auto px-4 py-8">
+            <h2 class="text-2xl font-bold text-slate-700 mb-6">管理する校舎を選択</h2>
+            <div id="schoolListContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                </div>
+            
+            <div id="globalAdminMenu" class="mt-12 bg-white p-6 rounded-xl border border-slate-200 text-center hidden">
+                <h3 class="text-lg font-bold text-slate-700 mb-4 flex justify-center items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                    本部管理メニュー
+                </h3>
+                <div class="flex justify-center gap-4 flex-wrap">
+                    <button id="openGlobalDashBtn" class="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 shadow transition flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                        全校舎集計ダッシュボード
+                    </button>
+
+                    <button id="manageCommonContentsBtn" class="bg-orange-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-orange-700 shadow transition flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                        共通コンテンツ設定
+                    </button>
+
+                    <button onclick="document.getElementById('addSchoolModal').classList.remove('hidden')" class="bg-slate-700 text-white px-6 py-3 rounded-lg font-bold hover:bg-slate-600 shadow transition flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                        新しい校舎を追加
+                    </button>
+
+                    <button id="manageUsersBtn" class="bg-teal-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-teal-700 shadow transition flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        管理者ユーザー設定
+                    </button>
+
+                    <button id="manageIpBtn" class="bg-gray-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-gray-500 shadow transition flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        IP制限設定
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="globalDashboardView" class="hidden min-h-screen bg-slate-100">
+            <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="flex justify-between h-16">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-indigo-100 text-indigo-700 p-2 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg></span>
+                            <span class="text-xl font-extrabold text-slate-800">全校舎集計ダッシュボード</span>
+                        </div>
+                        <div class="flex items-center">
+                            <button id="closeGlobalDashBtn" class="text-sm text-slate-500 hover:text-slate-800 font-bold bg-slate-100 px-4 py-2 rounded-lg hover:bg-slate-200 transition">閉じる</button>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            <div class="max-w-7xl mx-auto px-4 py-8">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase">全校舎 予約総数 (累計)</h3>
+                        <p class="text-4xl font-black text-slate-700 mt-2" id="gTotalBookings">-</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase">登録校舎数</h3>
+                        <p class="text-4xl font-black text-slate-700 mt-2" id="gTotalSchools">-</p>
+                    </div>
+                     <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 relative overflow-hidden">
+                        <div class="absolute right-0 top-0 p-4 opacity-10">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </div>
+                        <h3 class="text-xs font-bold text-slate-400 uppercase">直近24時間の動き</h3>
+                        <p class="text-4xl font-black text-green-600 mt-2" id="gRecentActions">-</p>
+                        <p class="text-[10px] text-slate-400">新規予約</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                        <h3 class="text-lg font-bold text-slate-700 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            期間指定分析
+                        </h3>
+                        <div class="flex items-center gap-4 flex-wrap">
+                            <div class="flex bg-slate-100 rounded p-1">
+                                <button id="gTabCreated" class="px-4 py-2 text-xs font-bold rounded bg-white text-indigo-600 shadow-sm transition g-chart-tab-btn" data-type="created">予約受付日ベース</button>
+                                <button id="gTabEvent" class="px-4 py-2 text-xs font-bold rounded text-slate-500 hover:text-slate-700 transition g-chart-tab-btn" data-type="event">予約参加日ベース</button>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2 text-sm bg-slate-5 p-2 rounded-lg border border-slate-100">
+                                <input type="date" id="gStatsStartDate" class="p-2 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <span class="text-slate-400 font-bold">～</span>
+                                <input type="date" id="gStatsEndDate" class="p-2 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <button id="calcGlobalStatsBtn" class="bg-indigo-600 text-white font-bold py-2 px-6 rounded hover:bg-indigo-700 transition shadow-sm">集計実行</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-100 pt-6">
+                        <div class="text-center p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+                            <p class="text-xs font-bold text-indigo-400 uppercase mb-1">期間内 予約合計</p>
+                            <p class="text-3xl font-black text-indigo-700" id="gPeriodBookingCount">-</p>
+                        </div>
+                        <div class="text-center p-4 bg-slate-5 rounded-lg border border-slate-100">
+                            <p class="text-xs font-bold text-slate-400 uppercase mb-1">予約獲得校舎数</p>
+                            <p class="text-3xl font-black text-slate-700" id="gPeriodActiveSchools">-</p>
+                        </div>
+                        <div class="text-center p-4 bg-slate-5 rounded-lg border border-slate-100">
+                            <p class="text-xs font-bold text-slate-400 uppercase mb-1">最も予約が多い日</p>
+                            <p class="text-xl font-bold text-slate-700" id="gPeriodPeakDay">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
+                    <div class="flex flex-wrap items-center justify-between mb-4">
+                        <h3 class="font-bold text-slate-700 flex items-center">
+                            <span class="w-2 h-6 bg-blue-500 rounded mr-2"></span>
+                            全校舎 予約実績推移 (日別・校舎別積み上げ)
+                        </h3>
+                    </div>
+                    <div class="relative w-full h-[350px]">
+                        <canvas id="globalBookingChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold text-slate-700 mb-4 flex items-center justify-between">
+                            <div class="flex items-center">
+                                <span class="w-2 h-6 bg-indigo-500 rounded mr-2"></span>
+                                校舎別 予約獲得ランキング
+                            </div>
+                            <span class="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-1 rounded">指定期間の集計</span>
+                        </h3>
+                        <div class="relative w-full h-80">
+                            <canvas id="schoolComparisonChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col h-[400px]">
+                        <h3 class="font-bold text-slate-700 mb-4 flex items-center">
+                            <span class="w-2 h-6 bg-green-500 rounded mr-2"></span>
+                            最新の予約状況 (全校舎タイムライン)
+                        </h3>
+                        <div class="flex-1 overflow-y-auto space-y-3 pr-2" id="globalRecentBookings">
+                            <div class="text-center text-slate-400 text-sm mt-10">読み込み中...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="schoolAdminView" class="hidden max-w-7xl mx-auto px-4 py-8">
+            <div class="flex border-b border-slate-300 mb-6 bg-white rounded-t-lg overflow-x-auto">
+                <button class="tab-btn px-6 py-4 font-bold text-blue-600 border-b-2 border-blue-600" data-tab="dashboard">ダッシュボード</button>
+                <button class="tab-btn px-6 py-4 font-bold text-slate-500 hover:text-blue-600" data-tab="booking-management">予約管理</button>
+                <button class="tab-btn px-6 py-4 font-bold text-slate-500 hover:text-blue-600" data-tab="inquiries">お問い合わせ</button>
+                <button class="tab-btn px-6 py-4 font-bold text-slate-500 hover:text-blue-600" data-tab="course-settings">体験会設定</button>
+                <button class="tab-btn px-6 py-4 font-bold text-slate-500 hover:text-blue-600" data-tab="url-generator">集客URL作成</button>
+                <button class="tab-btn px-6 py-4 font-bold text-slate-500 hover:text-blue-600" data-tab="school-settings">教室設定</button>
+            </div>
+
+            <div id="tab-dashboard" class="tab-content">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase">現在の予約総数</h3>
+                        <p class="text-3xl font-black text-slate-700 mt-2" id="totalBookings">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase">今月の予約</h3>
+                        <p class="text-3xl font-black text-blue-600 mt-2" id="monthBookings">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase">今月の売上金額</h3>
+                        <p class="text-3xl font-black text-slate-700 mt-2" id="monthSales">¥0</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 h-full">
+                        <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                            期間指定集計
+                        </h3>
+                        <div class="flex flex-wrap items-end gap-3 text-sm mb-4">
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">開始日</label>
+                                <input type="date" id="statsStartDate" class="p-2 border border-slate-300 rounded">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">終了日</label>
+                                <input type="date" id="statsEndDate" class="p-2 border border-slate-300 rounded">
+                            </div>
+                            <button id="calcStatsBtn" class="bg-slate-700 text-white font-bold py-2 px-4 rounded hover:bg-slate-600">集計</button>
+                        </div>
+                        <div id="periodStatsResult" class="p-3 bg-white border border-slate-100 rounded text-sm mb-4">
+                            <div class="flex justify-around items-center">
+                                <div class="text-center">
+                                    <p class="text-xs text-slate-500">予約数</p>
+                                    <p class="text-lg font-bold text-slate-700" id="statsBookingCount">-</p>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-xs text-slate-500">総枠数</p>
+                                    <p class="text-lg font-bold text-slate-700" id="statsCapacityCount">-</p>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-xs text-slate-500">予約率</p>
+                                    <p class="text-lg font-bold text-blue-600" id="statsRate">-</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-lg border border-slate-200 h-full flex flex-col">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-bold text-slate-700">予約実績推移 (積み上げ)</h3>
+                            <div class="flex bg-slate-100 rounded p-1">
+                                <button id="chartTabCreated" class="px-3 py-1 text-xs font-bold rounded bg-white text-blue-600 shadow-sm transition chart-tab-btn" data-type="created">受付日</button>
+                                <button id="chartTabEvent" class="px-3 py-1 text-xs font-bold rounded text-slate-500 hover:text-slate-700 transition chart-tab-btn" data-type="event">参加日</button>
+                            </div>
+                        </div>
+                        <div class="relative flex-1 w-full min-h-[200px]">
+                            <canvas id="bookingChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
+                    <h3 class="font-bold text-slate-700 mb-4 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                        コンテンツ別 予実管理 (総枠数 vs 予約数)
+                        <span class="text-xs font-normal text-slate-400 ml-2">※指定期間内の開催分を集計</span>
+                    </h3>
+                    <div class="relative w-full h-[300px]">
+                        <canvas id="contentPerformanceChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="mb-6 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-sm font-bold text-slate-700 mb-4 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                        アクセス解析 & 流入元分析
+                        <span class="text-[10px] ml-2 text-slate-400 font-normal">※指定期間のログ集計値</span>
+                    </h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                            <h4 class="text-xs font-bold text-slate-500 mb-3 text-center">コンバージョンファネル</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div class="col-span-1 text-center">
+                                    <p class="text-xs text-blue-500 font-bold uppercase tracking-wider">CVR</p>
+                                    <p class="text-2xl font-black text-blue-700 mt-1" id="analyticsCvr">-</p>
+                                </div>
+                                <div class="col-span-2 space-y-1 text-xs text-slate-600" id="analyticsList"></div>
+                            </div>
+                            <div class="relative w-full h-48">
+                                <canvas id="funnelChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                            <h4 class="text-xs font-bold text-slate-500 mb-3 text-center">予約流入経路 (Source)</h4>
+                            <div class="relative w-full h-64 flex justify-center">
+                                <canvas id="trafficSourceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between mb-4 bg-slate-50 p-3 rounded-lg">
+                        <button id="prevDashboardMonth" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 font-bold text-slate-600">&lt; 前月</button>
+                        <h3 id="dashboardCalendarTitle" class="text-lg font-bold text-slate-800"></h3>
+                        <button id="nextDashboardMonth" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 font-bold text-slate-600">翌月 &gt;</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <div class="min-w-[800px] border rounded-lg">
+                             <div class="grid grid-cols-7 bg-slate-50 border-b text-center py-2 text-xs font-bold text-slate-500">
+                                <div class="text-red-400">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="text-blue-400">土</div>
+                            </div>
+                            <div id="dashGrid" class="grid grid-cols-7 gap-px bg-slate-200"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-booking-management" class="tab-content hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-slate-700">予約一覧</h3>
+                        <button id="openAddBookingModalBtn" class="bg-teal-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-700 shadow flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                            新規予約登録
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-slate-600">
+                            <thead class="bg-slate-50 text-xs uppercase font-bold text-slate-500 border-b">
+                                <tr>
+                                    <th class="px-6 py-4">開催日時</th>
+                                    <th class="px-6 py-4">コンテンツ</th>
+                                    <th class="px-6 py-4 text-center">種別</th>
+                                    <th class="px-6 py-4 text-center">流入経路</th>
+                                    <th class="px-6 py-4 text-center">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bookingTableBody" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-inquiries" class="tab-content hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <h3 class="text-lg font-bold text-slate-700 mb-4">お問い合わせ (日時リクエスト) 一覧</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-slate-600">
+                            <thead class="bg-slate-50 text-xs uppercase font-bold text-slate-500 border-b">
+                                <tr>
+                                    <th class="px-6 py-4 w-32">受信日時</th>
+                                    <th class="px-6 py-4">希望内容</th>
+                                    <th class="px-6 py-4 w-32 text-center">ステータス</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inquiryTableBody" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-course-settings" class="tab-content hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-fit">
+                        <h3 class="text-lg font-bold text-slate-700 mb-4 pb-2 border-b">1. コンテンツ管理</h3>
+                        <div class="mb-4 space-y-3">
+                             <button id="openContentModalBtn" class="bg-orange-500 text-white font-bold py-4 px-6 rounded-lg hover:bg-orange-600 transition w-full shadow-md flex items-center justify-center gap-2">
+                                <span class="text-2xl font-bold leading-none">+</span> 新規作成
+                            </button>
+                             <button id="openImportCommonModalBtn" class="bg-slate-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-slate-600 transition w-full shadow-md flex items-center justify-center gap-2 text-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                共通コンテンツからコピー
+                            </button>
+                        </div>
+                        <div id="localContentList" class="space-y-2 max-h-[500px] overflow-y-auto"></div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-fit">
+                        <h3 class="text-lg font-bold text-slate-700 mb-4 pb-2 border-b">2. 開催日程登録</h3>
+                        <div class="flex justify-between items-center mb-4">
+                            <button id="schedPrev" class="px-3 py-1 border rounded text-xs">&lt;</button>
+                            <span id="schedTitle" class="font-bold"></span>
+                            <button id="schedNext" class="px-3 py-1 border rounded text-xs">&gt;</button>
+                        </div>
+                        <div class="border rounded text-xs">
+                             <div class="grid grid-cols-7 bg-slate-50 text-center py-2 font-bold text-slate-500 border-b">
+                                <div class="text-red-400">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="text-blue-400">土</div>
+                            </div>
+                            <div id="schedGrid" class="grid grid-cols-7 gap-px bg-slate-200"></div>
+                        </div>
+                        <p class="text-xs text-right mt-2 text-slate-400">日付をクリックして枠を追加</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-url-generator" class="tab-content hidden">
+                <div class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 max-w-2xl mx-auto">
+                    <h3 class="text-xl font-bold text-slate-700 mb-6 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                        集客用URL作成ツール
+                    </h3>
+                    <p class="text-sm text-slate-500 mb-6">
+                        広告やSNS投稿用の計測パラメータ（UTM）付きURLを作成します。<br>
+                        ここで作成したURLを使用することで、「どの媒体から」「どのキャンペーンで」予約が入ったかを集計できます。
+                    </p>
+
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">参照元 (utm_source) <span class="text-red-500">*</span></label>
+                                <input type="text" id="utmSource" class="w-full p-2 border rounded text-sm" placeholder="例: instagram, google, flyer">
+                                <p class="text-[10px] text-slate-400 mt-1">流入元（インスタ、Google検索、チラシなど）</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">メディア (utm_medium)</label>
+                                <input type="text" id="utmMedium" class="w-full p-2 border rounded text-sm" placeholder="例: story, cpc, qr">
+                                <p class="text-[10px] text-slate-400 mt-1">媒体の種類（ストーリーズ、検索広告、QRコードなど）</p>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">キャンペーン名 (utm_campaign)</label>
+                            <input type="text" id="utmCampaign" class="w-full p-2 border rounded text-sm" placeholder="例: spring_campaign_2025">
+                            <p class="text-[10px] text-slate-400 mt-1">特定のキャンペーンやプロモーション名</p>
+                        </div>
+
+                        <div class="pt-4 border-t mt-4">
+                            <label class="block text-xs font-bold text-slate-600 mb-2">生成されたURL</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="generatedUrl" class="flex-1 p-3 border border-indigo-200 bg-indigo-50 rounded text-sm text-slate-600 font-mono" readonly>
+                                <button id="copyUrlBtn" class="bg-indigo-600 text-white font-bold px-4 py-2 rounded hover:bg-indigo-700 transition whitespace-nowrap">コピー</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-school-settings" class="tab-content hidden">
+                 <div class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 max-w-2xl mx-auto">
+                    <h3 class="text-xl font-bold text-slate-700 mb-6">教室基本情報</h3>
+                    <form id="schoolSettingsForm" class="space-y-5">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-600 mb-1">教室名</label>
+                            <input type="text" name="schoolName" id="settingSchoolName" class="w-full p-2 border rounded">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-600 mb-1">住所</label>
+                            <input type="text" name="address" id="settingAddress" class="w-full p-2 border rounded">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-600 mb-1">電話番号</label>
+                            <input type="text" name="phoneNumber" id="settingPhone" class="w-full p-2 border rounded">
+                        </div>
+                         <div>
+                            <label class="block text-sm font-bold text-slate-600 mb-1">予約ページタイトル</label>
+                            <input type="text" name="pageTitle" id="settingPageTitle" class="w-full p-2 border rounded">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-600 mb-1">予約ページ説明文</label>
+                            <input type="text" name="pageDescription" id="settingPageDesc" class="w-full p-2 border rounded">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-600 mb-1">ヘッダー画像URL</label>
+                            <input type="text" name="headerImageUrl" id="settingHeaderImage" class="w-full p-2 border rounded text-xs text-slate-500">
+                        </div>
+                        <div class="pt-4 text-center">
+                            <button type="submit" id="saveSettingsBtn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-blue-700">設定を保存</button>
+                        </div>
+                    </form>
+                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="addBookingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-[80]">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h3 class="font-bold text-lg mb-4 text-slate-700">新規予約登録</h3>
+            <p class="text-xs text-slate-500 mb-4">管理者が直接予約を登録します。</p>
+            <form id="addBookingForm" class="space-y-4">
+                <div class="bg-teal-50 p-3 rounded border border-teal-100">
+                    <div class="mb-3">
+                        <label class="block text-xs font-bold text-teal-700 mb-1">参加日を選択</label>
+                        <input type="date" id="newBookingDate" class="w-full p-2 border rounded text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-teal-700 mb-1">体験会コース・時間を選択</label>
+                        <select id="newBookingScheduleId" class="w-full p-2 border rounded text-sm" required>
+                            <option value="">先に日付を選択してください</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">学年</label>
+                    <select id="newGrade" class="w-full p-2 border rounded text-sm">
+                        <option value="preschool">年中・年長</option>
+                        <option value="grade1_2">小1～小2</option>
+                        <option value="grade3_plus">小3以上</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('addBookingModal').classList.add('hidden')" class="px-4 py-2 bg-slate-100 rounded text-sm font-bold text-slate-600">キャンセル</button>
+                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded text-sm font-bold hover:bg-teal-700">登録する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="bookingEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-[70]">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h3 class="font-bold text-lg mb-4 text-slate-700">予約情報の変更</h3>
+            <form id="bookingEditForm" class="space-y-4">
+                <input type="hidden" id="editBookingId">
+                <input type="hidden" id="originalDate">
+                <input type="hidden" id="originalStartTime">
+                <input type="hidden" id="originalContentId">
+                
+                <div class="bg-yellow-50 p-3 rounded border border-yellow-200 mb-2">
+                    <p class="text-xs font-bold text-yellow-800 mb-2 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        予約日時の変更（必要な場合のみ）
+                    </p>
+                    <div class="mb-2">
+                        <label class="block text-[10px] font-bold text-yellow-700 mb-1">変更後の日付</label>
+                        <input type="date" id="editBookingDate" class="w-full p-2 border border-yellow-300 rounded text-sm bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-yellow-700 mb-1">変更後の枠</label>
+                        <select id="editBookingScheduleId" class="w-full p-2 border border-yellow-300 rounded text-sm bg-white">
+                            <option value="">変更しない（現在の日時のまま）</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('bookingEditModal').classList.add('hidden')" class="px-4 py-2 bg-slate-100 rounded text-sm font-bold text-slate-600">キャンセル</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-700">変更を保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="addSchoolModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+            <h3 class="font-bold mb-4">校舎を追加</h3>
+            <form id="addSchoolForm" class="space-y-4">
+                <input type="text" id="newSchoolName" placeholder="校舎名" class="w-full p-2 border rounded" required>
+                <input type="text" id="newSchoolId" placeholder="ID (半角英数)" class="w-full p-2 border rounded" required>
+                <button type="submit" class="w-full bg-slate-800 text-white font-bold py-2 rounded">追加</button>
+                <button type="button" onclick="document.getElementById('addSchoolModal').classList.add('hidden')" class="w-full text-slate-500 text-sm">キャンセル</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="ipSettingsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-2xl">
+            <h3 class="font-bold mb-4 text-slate-700">接続許可IPアドレス設定</h3>
+            <p class="text-xs text-slate-500 mb-4">
+                登録されたIPアドレスのみが管理画面にログインできます。<br>
+                リストが空の場合は制限がかかりません。
+            </p>
+            
+            <div class="mb-4">
+                <div class="flex gap-2 mb-2">
+                    <input type="text" id="newIpInput" class="flex-1 p-2 border rounded text-sm" placeholder="例: 203.0.113.1">
+                    <button id="addIpBtn" class="bg-blue-600 text-white px-3 py-2 rounded text-sm font-bold">追加</button>
+                </div>
+                <div class="text-xs text-right">
+                    <button id="addCurrentIpBtn" class="text-blue-500 hover:underline">現在のIPを追加</button>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border rounded h-40 overflow-y-auto p-2 mb-4 space-y-1" id="ipListContainer">
+                </div>
+
+            <div class="flex justify-end gap-2">
+                <button onclick="document.getElementById('ipSettingsModal').classList.add('hidden')" class="px-4 py-2 bg-slate-100 rounded text-sm">閉じる</button>
+                <button id="saveIpSettingsBtn" class="px-4 py-2 bg-slate-800 text-white rounded text-sm font-bold">保存する</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="userManagementModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <h3 class="font-bold mb-4 text-slate-700 border-b pb-2 flex justify-between items-center">
+                <span>管理者ユーザー設定</span>
+                <button onclick="document.getElementById('userManagementModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl">×</button>
+            </h3>
+            
+            <div class="flex gap-4 mb-6">
+                <div class="w-1/2 border-r pr-4 flex flex-col">
+                    <h4 class="text-xs font-bold text-slate-500 mb-2">登録済みユーザー</h4>
+                    <div id="userListContainer" class="flex-1 overflow-y-auto max-h-[400px] space-y-2">
+                        </div>
+                </div>
+
+                <div class="w-1/2 pl-2">
+                    <h4 class="text-xs font-bold text-slate-500 mb-2" id="userFormTitle">新規ユーザー追加</h4>
+                    <form id="userManagementForm" class="space-y-3">
+                        <input type="hidden" id="editUserId" value="">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">メールアドレス</label>
+                            <input type="email" id="userEmail" class="w-full p-2 border rounded text-sm" required placeholder="user@example.com">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">パスワード</label>
+                            <input type="text" id="userPassword" class="w-full p-2 border rounded text-sm" required placeholder="パスワード">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">表示名</label>
+                            <input type="text" id="userName" class="w-full p-2 border rounded text-sm" placeholder="担当者名">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">権限 (Role)</label>
+                            <select id="userRole" class="w-full p-2 border rounded text-sm bg-white">
+                                <option value="school">校舎管理者 (特定校舎のみ)</option>
+                                <option value="global">本部管理者 (全権限)</option>
+                            </select>
+                        </div>
+                        <div id="schoolSelectContainer">
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">担当校舎</label>
+                            <select id="userAssignedSchool" class="w-full p-2 border rounded text-sm bg-white">
+                                <option value="">選択してください</option>
+                                </select>
+                        </div>
+                        
+                        <div class="pt-2 flex gap-2">
+                             <button type="submit" class="flex-1 bg-teal-600 text-white font-bold py-2 rounded text-sm hover:bg-teal-700">保存</button>
+                             <button type="button" id="cancelUserEditBtn" class="flex-1 bg-slate-100 text-slate-500 font-bold py-2 rounded text-sm hover:bg-slate-200 hidden">キャンセル</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="commonContentsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl p-6 w-full max-w-lg shadow-2xl h-[80vh] flex flex-col">
+            <h3 class="text-lg font-bold mb-4 flex justify-between items-center border-b pb-2">
+                <span>共通コンテンツ管理</span>
+                <button onclick="document.getElementById('commonContentsModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">×</button>
+            </h3>
+            <div class="flex-1 overflow-y-auto mb-4">
+                <div id="commonContentListContainer" class="space-y-2"></div>
+            </div>
+            <div class="border-t pt-4">
+                <h4 class="text-sm font-bold text-slate-700 mb-2">新規追加 / 編集</h4>
+                <div class="space-y-3">
+                    <input type="hidden" id="editCommonIdx" value="-1">
+                    <input type="text" id="commonName" placeholder="コンテンツ名" class="w-full p-2 border rounded text-sm">
+                    <div class="flex gap-2">
+                        <input type="text" id="commonId" placeholder="ID (任意)" class="flex-1 p-2 border rounded text-sm">
+                        <select id="commonType" class="flex-1 p-2 border rounded text-sm">
+                            <option value="trial">体験会</option>
+                            <option value="event">イベント</option>
+                        </select>
+                        <input type="number" id="commonPrice" placeholder="金額" class="w-24 p-2 border rounded text-sm">
+                    </div>
+                    <textarea id="commonDescription" placeholder="体験内容" class="w-full p-2 border rounded text-sm h-20"></textarea>
+                    <div class="flex gap-2">
+                        <input type="text" id="commonDuration" placeholder="所要時間 (例: 90分)" class="flex-1 p-2 border rounded text-sm">
+                    </div>
+                    <textarea id="commonNotes" placeholder="注意事項" class="w-full p-2 border rounded text-sm h-16"></textarea>
+                    
+                    <input type="text" id="commonImage" placeholder="画像URL" class="w-full p-2 border rounded text-sm">
+                    <button id="saveCommonContentBtn" class="w-full bg-orange-600 text-white font-bold py-2 rounded">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="importCommonModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-[60]">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-lg font-bold mb-4">共通コンテンツから取り込み</h3>
+            <p class="text-xs text-slate-500 mb-4">以下のリストから取り込むコンテンツを選択してください。</p>
+            <div id="importListContainer" class="space-y-2 max-h-64 overflow-y-auto border p-2 rounded mb-4">
+                </div>
+            <div class="flex justify-end gap-2">
+                <button onclick="document.getElementById('importCommonModal').classList.add('hidden')" class="px-4 py-2 bg-slate-100 rounded text-sm">キャンセル</button>
+                <button id="execImportBtn" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-bold">選択した項目を取り込む</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="contentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h3 class="text-lg font-bold mb-4 flex justify-between items-center">
+                <span id="contentFormTitle">新規作成</span>
+                <button id="closeContentModal" class="text-slate-400 hover:text-slate-600">×</button>
+            </h3>
+            <div class="space-y-4">
+                <input type="hidden" id="editContentId">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">コンテンツ名 (ID設定可)</label>
+                    <input type="text" id="editContentName" class="w-full p-2 border border-slate-300 rounded text-sm" placeholder="例: はじめてのロボット">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">コンテンツID (任意・半角英数)</label>
+                    <input type="text" id="editContentCustomId" class="w-full p-2 border border-slate-300 rounded text-sm" placeholder="空欄の場合は自動生成">
+                    <p class="text-[10px] text-slate-400 mt-1">※指定したい場合のみ入力。作成後は変更できません。</p>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">体験内容</label>
+                    <textarea id="editContentDescription" class="w-full p-2 border border-slate-300 rounded text-sm h-24" placeholder="体験会の詳細な内容を記述してください"></textarea>
+                </div>
+                
+                <div class="flex gap-2">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">所要時間</label>
+                        <input type="text" id="editContentDuration" class="w-full p-2 border border-slate-300 rounded text-sm" placeholder="例: 90分">
+                    </div>
+                     <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">金額(円)</label>
+                        <input type="number" id="editContentPrice" class="w-full p-2 border border-slate-300 rounded text-sm" placeholder="1500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">注意事項</label>
+                    <textarea id="editContentNotes" class="w-full p-2 border border-slate-300 rounded text-sm h-20" placeholder="持ち物や注意事項など"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">バナー画像URL</label>
+                    <input type="text" id="editContentImage" class="w-full p-2 border border-slate-300 rounded text-sm" placeholder="https://example.com/image.jpg">
+                </div>
+                
+                <div class="flex gap-2">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">種別</label>
+                        <select id="editContentType" class="w-full p-2 border border-slate-300 rounded text-sm">
+                            <option value="trial">体験会</option>
+                            <option value="event">イベント</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="button" id="saveContentBtn" class="w-full bg-orange-500 text-white font-bold py-3 rounded-lg hover:bg-orange-600 transition shadow-md">作成して保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="scheduleModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl p-6 w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b">
+                <h3 class="font-bold text-lg"><span id="modalDateDisplay"></span> の設定</h3>
+                <button id="closeScheduleModal" class="text-2xl text-slate-400">×</button>
+            </div>
+            <div class="flex flex-1 overflow-hidden gap-6">
+                <div class="w-1/2 relative border rounded bg-slate-50 overflow-y-auto h-full timeline-container" id="timelineContainer">
+                    <div id="timelineAxis" class="absolute left-0 w-10 border-r h-[720px] bg-white text-[10px] text-slate-400 text-center pt-1"></div>
+                    <div id="timelineTracks" class="absolute left-10 right-0 h-[720px]"></div>
+                </div>
+                <div class="w-1/2 overflow-y-auto">
+                    <div class="bg-slate-50 p-4 rounded-lg mb-6">
+                        <h4 class="text-xs font-bold text-slate-500 mb-3" id="schedFormTitle">新規枠を追加</h4>
+                        <input type="hidden" id="schedEditIndex" value="-1">
+                        <div class="mb-3">
+                            <label class="block text-xs font-bold text-slate-400 mb-1">コンテンツ</label>
+                            <select id="schedContentSelect" class="w-full p-2 border rounded text-sm bg-white"></select>
+                        </div>
+                        <div class="mb-3">
+                             <label class="block text-xs font-bold text-slate-400 mb-1">対象学年</label>
+                             <div class="flex flex-wrap gap-2">
+                                <label class="text-xs"><input type="checkbox" class="sched-grade" value="preschool"> 年中長</label>
+                                <label class="text-xs"><input type="checkbox" class="sched-grade" value="grade1_2"> 小1-2</label>
+                                <label class="text-xs"><input type="checkbox" class="sched-grade" value="grade3_plus"> 小3+</label>
+                             </div>
+                        </div>
+                        <div class="flex gap-2 mb-3">
+                            <div class="flex-1">
+                                <label class="block text-xs font-bold text-slate-400 mb-1">開始</label>
+                                <input type="time" id="schedStart" class="w-full p-2 border rounded text-sm">
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-xs font-bold text-slate-400 mb-1">終了</label>
+                                <input type="time" id="schedEnd" class="w-full p-2 border rounded text-sm">
+                            </div>
+                        </div>
+                        <div class="mb-3 w-20">
+                             <label class="block text-xs font-bold text-slate-400 mb-1">定員</label>
+                             <input type="number" id="schedCap" value="5" class="w-full p-2 border rounded text-sm">
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="schedDeleteBtn" class="flex-1 bg-red-100 text-red-500 font-bold py-2 rounded text-xs hidden">削除</button>
+                            <button id="schedSaveBtn" class="flex-[2] bg-blue-600 text-white font-bold py-2 rounded text-sm">保存</button>
+                        </div>
+                        <button id="schedCancelBtn" class="w-full text-xs text-slate-400 mt-2 hidden">キャンセル</button>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-500 mb-2">登録済みリスト</h4>
+                        <div id="daySchedList" class="space-y-2 text-sm"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="copyDialog" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 hidden z-[60]">
+        <div class="bg-white rounded-lg p-6 shadow-xl max-w-xs w-full">
+            <h4 class="font-bold text-slate-700 mb-4">スケジュールの複製</h4>
+            <input type="date" id="copyDate" class="w-full p-2 border rounded mb-4">
+            <div class="flex justify-end gap-2">
+                <button id="cancelCopyBtn" class="px-4 py-2 bg-slate-100 rounded text-sm">キャンセル</button>
+                <button id="execCopyBtn" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-bold">複製</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-4 right-4 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl opacity-0 pointer-events-none transition-opacity duration-300 z-[70]"></div>
+
+    <script type="module" src="admin.js"></script>
+</body>
+</html>
