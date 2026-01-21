@@ -250,7 +250,7 @@
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
     import { getFirestore, doc, getDoc, addDoc, collection, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
-    // --- 設定エリア: 除外したいIPアドレス ---
+    // --- 設定エリア: 静的な除外IPアドレス ---
     const EXCLUDED_IPS = [
         "137.83.213.235",   // 社内
         "203.0.113.10"   // 自宅
@@ -282,6 +282,9 @@
         let hasLoggedFormInput = false; 
         let hasLoggedPageView = false;
         
+        // --- 修正: 管理者用のIPリストを格納する変数を追加 ---
+        let adminConfigIps = [];
+
         let ipCheckPromise = null;
         const getIpPromise = () => {
              if (!ipCheckPromise) {
@@ -317,6 +320,15 @@
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
+
+                // --- 修正: 管理コンソールで設定した許可IPリストを読み込む ---
+                onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'ip_allowlist'), (snap) => {
+                    if (snap.exists()) {
+                        adminConfigIps = snap.data().list || [];
+                    } else {
+                        adminConfigIps = [];
+                    }
+                });
                 
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
@@ -347,8 +359,9 @@
             if (!currentSchoolId) return;
             try {
                 const currentIp = await getIpPromise();
-                if (currentIp && EXCLUDED_IPS.includes(currentIp)) {
-                    console.log(`[Log Skipped] Access from excluded IP: ${currentIp} (Event: ${eventName})`);
+                // --- 修正: EXCLUDED_IPS または adminConfigIps に含まれる場合はログ送信をスキップ ---
+                if (currentIp && (EXCLUDED_IPS.includes(currentIp) || adminConfigIps.includes(currentIp))) {
+                    console.log(`[Log Skipped] Access from excluded/admin IP: ${currentIp} (Event: ${eventName})`);
                     return;
                 }
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'access_logs'), {
