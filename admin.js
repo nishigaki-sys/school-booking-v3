@@ -108,13 +108,17 @@ const initFirebase = async () => {
     db = getFirestore(app);
     
     // Load Global Configs (Public Read)
-    loadAllowedIps(db, appId);
+    // loadAllowedIps(db, appId);  
     fetchIpAddress();
     
     // Auth State Listener
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             // Logged In
+            
+            // ★ここに移動 (ログイン後にロードを開始する)
+            loadAllowedIps(db, appId);
+
             try {
                 // Fetch User Role from Firestore
                 const userDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid));
