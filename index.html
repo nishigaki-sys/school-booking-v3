@@ -262,6 +262,26 @@
         grade3_plus: { bg: 'bg-[#00b4dc]', text: 'text-white', btnBorder: 'border-[#00b4dc]', btnText: 'text-[#00b4dc]', btnHover: 'hover:bg-blue-50' }
     };
 
+    // --- 学年マッチング用ヘルパー関数 ---
+    const checkGradeMatch = (selectedBtnGrade, eventGrades) => {
+        if (!eventGrades || eventGrades.length === 0) return false;
+        
+        // 全学年対象なら常にOK
+        if (eventGrades.includes('all_grades')) return true;
+
+        // 選択されたボタンに応じたチェック
+        switch (selectedBtnGrade) {
+            case 'preschool': // 年中・年長ボタン
+                return eventGrades.some(g => ['preschool', 'preschool_mid', 'preschool_senior'].includes(g));
+            case 'grade1_2': // 小1～小2ボタン
+                return eventGrades.some(g => ['grade1_2', 'grade1', 'grade2'].includes(g));
+            case 'grade3_plus': // 小3以上ボタン
+                return eventGrades.some(g => ['grade3_plus', 'grade3', 'grade4', 'grade5', 'grade6'].includes(g));
+            default:
+                return false;
+        }
+    };
+
     // --- ID生成関数の追加 ---
     const generateBookingId = () => {
         const now = new Date();
@@ -282,7 +302,6 @@
         let hasLoggedFormInput = false; 
         let hasLoggedPageView = false;
         
-        // --- 修正: 管理者用のIPリストを格納する変数を追加 ---
         let adminConfigIps = [];
 
         let ipCheckPromise = null;
@@ -321,7 +340,6 @@
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                // --- 修正: 管理コンソールで設定した許可IPリストを読み込む ---
                 onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'ip_allowlist'), (snap) => {
                     if (snap.exists()) {
                         adminConfigIps = snap.data().list || [];
@@ -359,7 +377,6 @@
             if (!currentSchoolId) return;
             try {
                 const currentIp = await getIpPromise();
-                // --- 修正: EXCLUDED_IPS または adminConfigIps に含まれる場合はログ送信をスキップ ---
                 if (currentIp && (EXCLUDED_IPS.includes(currentIp) || adminConfigIps.includes(currentIp))) {
                     console.log(`[Log Skipped] Access from excluded/admin IP: ${currentIp} (Event: ${eventName})`);
                     return;
@@ -577,7 +594,8 @@
 
                         const targetGrades = evt.grades || (content.grades || []) || [];
                         
-                        if (targetGrades.includes(selectedGrade)) {
+                        // --- 変更: 学年マッチングチェック ---
+                        if (checkGradeMatch(selectedGrade, targetGrades)) {
                             hasEvent = true;
                             const bookedCount = allBookings.filter(b => 
                                 b.date === dateStr && b.startTime === evt.startTime && b.contentId === evt.contentId
@@ -647,7 +665,8 @@
                 const content = (currentSettings.contents || []).find(c => c.id === evt.contentId);
                 if(!content) return false;
                 const targetGrades = evt.grades || (content.grades || []) || [];
-                return targetGrades.includes(selectedGrade);
+                // --- 変更: 学年マッチングチェック ---
+                return checkGradeMatch(selectedGrade, targetGrades);
             }).sort((a,b) => a.startTime.localeCompare(b.startTime));
 
             if(events.length === 0) list.innerHTML = `<p class="text-center text-slate-400">空き枠がありません</p>`;
