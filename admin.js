@@ -13,6 +13,27 @@ const GRADE_CONFIG = {
     grade3_plus: { bg: 'bg-[#00b4dc]', text: 'text-white' }
 };
 
+// 色決定ロジックの共通化
+const getEventColorClass = (grades) => {
+    if (!grades || grades.length === 0) return "bg-blue-500 text-white";
+    
+    // 全学年が含まれている場合
+    if (grades.includes('all_grades')) return "bg-[#5abe50] text-white"; // Green
+    
+    // 幼児が含まれている場合
+    if (grades.some(g => ['preschool', 'preschool_mid', 'preschool_senior'].includes(g))) {
+        return "bg-[#ff91aa] text-white"; // Pink
+    }
+    
+    // 低学年が含まれている場合
+    if (grades.some(g => ['grade1_2', 'grade1', 'grade2'].includes(g))) {
+        return "bg-[#ffac2d] text-white"; // Orange
+    }
+    
+    // それ以外（高学年のみなど）
+    return "bg-[#00b4dc] text-white"; // Blue
+};
+
 let app, auth, db, appId = 'robot-school-booking-v4';
 let schools = [], currentSettings = {}, currentSchoolId = null;
 let allBookings = [], allLogs = [], allInquiries = [];
@@ -69,7 +90,7 @@ const fetchIpAddress = async () => {
     }
 };
 
-// --- ID生成関数 (追加) ---
+// --- ID生成関数 ---
 const generateBookingId = () => {
     const now = new Date();
     const dateStr = now.getFullYear().toString() + 
@@ -113,7 +134,6 @@ const initFirebase = async () => {
                     showAdminScreen();
                 } else {
                     // AuthにはいるがDBにデータがない場合（初回ログイン時など）
-                    // ユーザーに確認して初期管理者として登録する
                     if (confirm(`ユーザーデータ未登録です。\nメールアドレス: ${user.email}\n\nこのアカウントを「本部管理者（全権限）」として初期登録してログインしますか？`)) {
                         currentUserData = { 
                             uid: user.uid, 
@@ -342,7 +362,7 @@ const editUser = (id) => {
     if (!u) return;
     document.getElementById('editUserId').value = u.id;
     document.getElementById('userEmail').value = u.email;
-    document.getElementById('userPassword').value = ""; // Security: Password not editable/visible
+    document.getElementById('userPassword').value = ""; 
     document.getElementById('userPassword').placeholder = "変更不可 (新規作成時のみ)";
     document.getElementById('userPassword').disabled = true;
     document.getElementById('userName').value = u.name;
@@ -1647,13 +1667,7 @@ function renderAdminDashboard() {
                  const remaining = Math.max(0, parseInt(evt.capacity) - count);
                  
                  const item = document.createElement('div');
-                 let col = "bg-gray-400";
-                 if(evt.grades && evt.grades.length > 0) {
-                     if(evt.grades.length === 3) col = "bg-[#5abe50]";
-                     else if(evt.grades.includes('preschool')) col = "bg-[#ff91aa]";
-                     else if(evt.grades.includes('grade1_2')) col = "bg-[#ffac2d]";
-                     else if(evt.grades.includes('grade3_plus')) col = "bg-[#00b4dc]";
-                 }
+                 let col = getEventColorClass(evt.grades);
                  item.className = `dashboard-event-item ${col}`;
                  item.innerHTML = `<div class="font-bold">${evt.startTime}</div><div class="truncate">${c.name}</div><div class="flex justify-between items-center mt-1"><span class="font-bold">予約:${count}/${evt.capacity}</span><span class="text-xs bg-white text-slate-600 px-1 rounded font-bold">残:${remaining}</span></div>`;
                  cell.appendChild(item);
@@ -1862,13 +1876,7 @@ function renderSchedCalendar() {
         if(currentSettings.schedule[dateStr]) {
             currentSettings.schedule[dateStr].forEach(evt => {
                 const c = currentSettings.contents.find(x => x.id === evt.contentId) || {name: '?'};
-                let col = "bg-blue-500";
-                if(evt.grades && evt.grades.length > 0) {
-                    if(evt.grades.length === 3) col = "bg-[#5abe50] text-white";
-                    else if(evt.grades.includes('preschool')) col = "bg-[#ff91aa] text-white";
-                    else if(evt.grades.includes('grade1_2')) col = "bg-[#ffac2d] text-white";
-                    else if(evt.grades.includes('grade3_plus')) col = "bg-[#00b4dc] text-white";
-                }
+                let col = getEventColorClass(evt.grades);
                 const div = document.createElement('div');
                 div.className = `${col} rounded px-1 mb-1 text-[10px] truncate border border-white`;
                 div.textContent = `${evt.startTime} ${c.name}`;
@@ -1930,13 +1938,7 @@ function renderTimeline() {
         const height = (eMin - sMin) * pxPerMin;
         
         const blk = document.createElement('div');
-        let col = "bg-blue-500";
-        if(evt.grades && evt.grades.length > 0) {
-            if(evt.grades.length === 3) col = "bg-[#5abe50]";
-            else if(evt.grades.includes('preschool')) col = "bg-[#ff91aa]";
-            else if(evt.grades.includes('grade1_2')) col = "bg-[#ffac2d]";
-            else if(evt.grades.includes('grade3_plus')) col = "bg-[#00b4dc]";
-        }
+        let col = getEventColorClass(evt.grades);
         blk.className = `timeline-event-block ${col}`;
         blk.style.top = top+'px'; blk.style.height = `${Math.max(20, height)}px`;
         blk.style.left = '4px'; blk.style.right = '4px';
