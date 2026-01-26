@@ -70,10 +70,18 @@
                         <span class="bg-teal-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span>
                         お子様の学年
                     </h2>
-                    <div id="gradeSelector" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <button data-grade="preschool" class="grade-btn w-full text-md font-bold py-4 px-4 bg-white border-2 border-[#ff91aa] text-[#ff91aa] rounded-xl hover:bg-pink-50 transition-transform hover:scale-105">年中・年長</button>
-                        <button data-grade="grade1_2" class="grade-btn w-full text-md font-bold py-4 px-4 bg-white border-2 border-[#ffac2d] text-[#ffac2d] rounded-xl hover:bg-orange-50 transition-transform hover:scale-105">小1～小2</button>
-                        <button data-grade="grade3_plus" class="grade-btn w-full text-md font-bold py-4 px-4 bg-white border-2 border-[#00b4dc] text-[#00b4dc] rounded-xl hover:bg-blue-50 transition-transform hover:scale-105">小3以上</button>
+                    <div id="gradeSelector" class="grid grid-cols-3 gap-3">
+                        <button data-grade="preschool_mid" class="grade-btn w-full text-sm font-bold py-3 px-2 bg-white border-2 border-[#ff91aa] text-[#ff91aa] rounded-xl hover:bg-pink-50 transition-transform hover:scale-105">年中</button>
+                        <button data-grade="preschool_senior" class="grade-btn w-full text-sm font-bold py-3 px-2 bg-white border-2 border-[#ff91aa] text-[#ff91aa] rounded-xl hover:bg-pink-50 transition-transform hover:scale-105">年長</button>
+                        <button data-grade="grade1" class="grade-btn w-full text-sm font-bold py-3 px-2 bg-white border-2 border-[#ffac2d] text-[#ffac2d] rounded-xl hover:bg-orange-50 transition-transform hover:scale-105">小1</button>
+                        
+                        <button data-grade="grade2" class="grade-btn w-full text-sm font-bold py-3 px-2 bg-white border-2 border-[#ffac2d] text-[#ffac2d] rounded-xl hover:bg-orange-50 transition-transform hover:scale-105">小2</button>
+                        <button data-grade="grade3" class="grade-btn w-full text-sm font-bold py-3 px-2 bg-white border-2 border-[#00b4dc] text-[#00b4dc] rounded-xl hover:bg-blue-50 transition-transform hover:scale-105">小3</button>
+                        <button data-grade="grade4" class="grade-btn w-full text-sm font-bold py-3 px-2 bg-white border-2 border-[#00b4dc] text-[#00b4dc] rounded-xl hover:bg-blue-50 transition-transform hover:scale-105">小4</button>
+                        
+                        <button data-grade="grade5" class="grade-btn w-full text-sm font-bold py-3 px-2 bg-white border-2 border-[#00b4dc] text-[#00b4dc] rounded-xl hover:bg-blue-50 transition-transform hover:scale-105">小5</button>
+                        <button data-grade="grade6" class="grade-btn w-full text-sm font-bold py-3 px-2 bg-white border-2 border-[#00b4dc] text-[#00b4dc] rounded-xl hover:bg-blue-50 transition-transform hover:scale-105">小6</button>
+                        <button data-grade="older" class="grade-btn w-full text-sm font-bold py-3 px-2 bg-white border-2 border-[#00b4dc] text-[#00b4dc] rounded-xl hover:bg-blue-50 transition-transform hover:scale-105">それ以上</button>
                     </div>
                 </div>
 
@@ -256,30 +264,29 @@
         "203.0.113.10"   // 自宅
     ];
 
+    // --- 修正: 9つの学年に対するデザイン設定を追加 ---
     const GRADE_CONFIG = {
-        preschool: { bg: 'bg-[#ff91aa]', text: 'text-white', btnBorder: 'border-[#ff91aa]', btnText: 'text-[#ff91aa]', btnHover: 'hover:bg-pink-50' },
-        grade1_2: { bg: 'bg-[#ffac2d]', text: 'text-white', btnBorder: 'border-[#ffac2d]', btnText: 'text-[#ffac2d]', btnHover: 'hover:bg-orange-50' },
-        grade3_plus: { bg: 'bg-[#00b4dc]', text: 'text-white', btnBorder: 'border-[#00b4dc]', btnText: 'text-[#00b4dc]', btnHover: 'hover:bg-blue-50' }
+        preschool_mid: { bg: 'bg-[#ff91aa]', text: 'text-white', btnBorder: 'border-[#ff91aa]', btnText: 'text-[#ff91aa]', btnHover: 'hover:bg-pink-50' },
+        preschool_senior: { bg: 'bg-[#ff91aa]', text: 'text-white', btnBorder: 'border-[#ff91aa]', btnText: 'text-[#ff91aa]', btnHover: 'hover:bg-pink-50' },
+        grade1: { bg: 'bg-[#ffac2d]', text: 'text-white', btnBorder: 'border-[#ffac2d]', btnText: 'text-[#ffac2d]', btnHover: 'hover:bg-orange-50' },
+        grade2: { bg: 'bg-[#ffac2d]', text: 'text-white', btnBorder: 'border-[#ffac2d]', btnText: 'text-[#ffac2d]', btnHover: 'hover:bg-orange-50' },
+        grade3: { bg: 'bg-[#00b4dc]', text: 'text-white', btnBorder: 'border-[#00b4dc]', btnText: 'text-[#00b4dc]', btnHover: 'hover:bg-blue-50' },
+        grade4: { bg: 'bg-[#00b4dc]', text: 'text-white', btnBorder: 'border-[#00b4dc]', btnText: 'text-[#00b4dc]', btnHover: 'hover:bg-blue-50' },
+        grade5: { bg: 'bg-[#00b4dc]', text: 'text-white', btnBorder: 'border-[#00b4dc]', btnText: 'text-[#00b4dc]', btnHover: 'hover:bg-blue-50' },
+        grade6: { bg: 'bg-[#00b4dc]', text: 'text-white', btnBorder: 'border-[#00b4dc]', btnText: 'text-[#00b4dc]', btnHover: 'hover:bg-blue-50' },
+        older:  { bg: 'bg-[#00b4dc]', text: 'text-white', btnBorder: 'border-[#00b4dc]', btnText: 'text-[#00b4dc]', btnHover: 'hover:bg-blue-50' }
     };
 
-    // --- 学年マッチング用ヘルパー関数 ---
+    // --- 修正: 学年マッチング用ヘルパー関数 (シンプル版) ---
     const checkGradeMatch = (selectedBtnGrade, eventGrades) => {
         if (!eventGrades || eventGrades.length === 0) return false;
         
         // 全学年対象なら常にOK
         if (eventGrades.includes('all_grades')) return true;
-
-        // 選択されたボタンに応じたチェック
-        switch (selectedBtnGrade) {
-            case 'preschool': // 年中・年長ボタン
-                return eventGrades.some(g => ['preschool', 'preschool_mid', 'preschool_senior'].includes(g));
-            case 'grade1_2': // 小1～小2ボタン
-                return eventGrades.some(g => ['grade1_2', 'grade1', 'grade2'].includes(g));
-            case 'grade3_plus': // 小3以上ボタン
-                return eventGrades.some(g => ['grade3_plus', 'grade3', 'grade4', 'grade5', 'grade6'].includes(g));
-            default:
-                return false;
-        }
+        
+        // 特定の学年が一致するかチェック
+        // (ボタンのdata-gradeと、管理側のvalueが一致している前提)
+        return eventGrades.includes(selectedBtnGrade);
     };
 
     // --- ID生成関数の追加 ---
@@ -498,10 +505,10 @@
 
                 document.querySelectorAll('#gradeSelector button').forEach(btn => {
                     const c = GRADE_CONFIG[btn.dataset.grade];
-                    btn.className = `grade-btn w-full text-md font-bold py-4 px-4 bg-white border-2 ${c.btnBorder} ${c.btnText} rounded-xl ${c.btnHover} transition-transform hover:scale-105`;
+                    btn.className = `grade-btn w-full text-sm font-bold py-3 px-2 bg-white border-2 ${c.btnBorder} ${c.btnText} rounded-xl ${c.btnHover} transition-transform hover:scale-105`;
                 });
                 const conf = GRADE_CONFIG[selectedGrade];
-                e.target.className = `grade-btn w-full text-md font-bold py-4 px-4 border-2 ${conf.bg} ${conf.text} ${conf.btnBorder} rounded-xl shadow-lg transform scale-105`;
+                e.target.className = `grade-btn w-full text-sm font-bold py-3 px-2 border-2 ${conf.bg} ${conf.text} ${conf.btnBorder} rounded-xl shadow-lg transform scale-105`;
                 
                 document.getElementById('calendarContainer').style.display = 'block';
                 document.getElementById('calendarContainer').scrollIntoView({behavior: 'smooth'});
@@ -594,7 +601,7 @@
 
                         const targetGrades = evt.grades || (content.grades || []) || [];
                         
-                        // --- 変更: 学年マッチングチェック ---
+                        // --- 修正: 学年マッチングチェック ---
                         if (checkGradeMatch(selectedGrade, targetGrades)) {
                             hasEvent = true;
                             const bookedCount = allBookings.filter(b => 
@@ -665,7 +672,7 @@
                 const content = (currentSettings.contents || []).find(c => c.id === evt.contentId);
                 if(!content) return false;
                 const targetGrades = evt.grades || (content.grades || []) || [];
-                // --- 変更: 学年マッチングチェック ---
+                // --- 修正: 学年マッチングチェック ---
                 return checkGradeMatch(selectedGrade, targetGrades);
             }).sort((a,b) => a.startTime.localeCompare(b.startTime));
 
@@ -842,7 +849,7 @@
             document.getElementById('userInfoForm').reset();
             document.querySelectorAll('#gradeSelector button').forEach(btn => {
                 const conf = GRADE_CONFIG[btn.dataset.grade];
-                btn.className = `grade-btn w-full text-md font-bold py-4 px-4 bg-white border-2 ${conf.btnBorder} ${conf.btnText} rounded-xl ${conf.btnHover} transition-transform hover:scale-105`;
+                btn.className = `grade-btn w-full text-sm font-bold py-3 px-2 bg-white border-2 ${conf.btnBorder} ${conf.btnText} rounded-xl ${conf.btnHover} transition-transform hover:scale-105`;
             });
             document.getElementById('inquirySection').style.display = 'none';
             window.scrollTo({top:0, behavior:'smooth'});
