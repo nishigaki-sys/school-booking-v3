@@ -1194,9 +1194,15 @@ const setupSchoolAdminEvents = () => {
         
         // 入力値の取得
         const childName = document.getElementById('adminChildName').value;
-        const parentName = document.getElementById('adminParentName').value || '管理者登録'; // 空ならデフォルト
-        const phone = document.getElementById('adminPhone').value || '-'; // 空ならハイフン
-        const email = document.getElementById('adminEmail').value || '-'; // 空ならハイフン
+        const parentName = document.getElementById('adminParentName').value || '管理者登録'; 
+        const phone = document.getElementById('adminPhone').value || '-'; 
+        
+        // --- 修正: メールアドレスの取得ロジックを明確化 ---
+        // type="text" にしても .value で取得できます
+        const rawEmail = document.getElementById('adminEmail').value; 
+        // 空白を除去し、空ならハイフンにする
+        const inputEmail = rawEmail && rawEmail.trim() !== '' ? rawEmail.trim() : '-';
+        // ------------------------------------------------
 
         try {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'bookings'), {
@@ -1212,11 +1218,11 @@ const setupSchoolAdminEvents = () => {
                 courseName: adminBookingState.content.name,
                 grade: adminBookingState.grade,
                 
-                // 入力データ（任意項目はデフォルト値が入る）
+                // 入力データ
                 childName: childName,
                 parentName: parentName,
                 phone: phone,
-                email: email,
+                email: inputEmail, // ★修正した変数を使う
                 
                 sourceType: 'admin',
                 createdAt: serverTimestamp()
