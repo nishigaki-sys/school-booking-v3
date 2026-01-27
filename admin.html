@@ -511,36 +511,67 @@
     </div>
 
     <div id="addBookingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-[80]">
-        <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
-            <h3 class="font-bold text-lg mb-4 text-slate-700">新規予約登録</h3>
-            <p class="text-xs text-slate-500 mb-4">管理者が直接予約を登録します。</p>
-            <form id="addBookingForm" class="space-y-4">
-                <div class="bg-teal-50 p-3 rounded border border-teal-100">
-                    <div class="mb-3">
-                        <label class="block text-xs font-bold text-teal-700 mb-1">参加日を選択</label>
-                        <input type="date" id="newBookingDate" class="w-full p-2 border rounded text-sm" required>
+        <div class="bg-white rounded-lg p-6 w-full max-w-lg shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="font-bold text-lg text-slate-700">管理者による新規予約登録</h3>
+                <button type="button" onclick="document.getElementById('addBookingModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+            </div>
+
+            <div id="adminStep1">
+                <h4 class="text-sm font-bold text-slate-500 mb-3 text-center">1. 対象学年を選択してください</h4>
+                <div class="grid grid-cols-3 gap-2" id="adminGradeSelector">
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold text-teal-700 mb-1">体験会コース・時間を選択</label>
-                        <select id="newBookingScheduleId" class="w-full p-2 border rounded text-sm" required>
-                            <option value="">先に日付を選択してください</option>
-                        </select>
-                    </div>
+            </div>
+
+            <div id="adminStep2" class="hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <button type="button" id="backToStep1" class="text-xs text-blue-500 hover:underline">← 学年選択に戻る</button>
+                    <span class="text-sm font-bold bg-slate-100 px-2 py-1 rounded text-slate-600" id="selectedGradeDisplay"></span>
+                </div>
+                
+                <div class="bg-teal-50 p-4 rounded-xl border border-teal-100 mb-4">
+                    <label class="block text-xs font-bold text-teal-700 mb-1">参加日を選択</label>
+                    <input type="date" id="adminBookingDate" class="w-full p-2 border rounded text-sm bg-white">
                 </div>
 
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">学年</label>
-                    <select id="newGrade" class="w-full p-2 border rounded text-sm">
-                        <option value="preschool">年中・年長</option>
-                        <option value="grade1_2">小1～小2</option>
-                        <option value="grade3_plus">小3以上</option>
-                    </select>
+                <div id="adminTimeSlotsContainer" class="space-y-2 max-h-60 overflow-y-auto">
+                    <p class="text-center text-xs text-slate-400 py-4">日付を選択してください</p>
                 </div>
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="document.getElementById('addBookingModal').classList.add('hidden')" class="px-4 py-2 bg-slate-100 rounded text-sm font-bold text-slate-600">キャンセル</button>
-                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded text-sm font-bold hover:bg-teal-700">登録する</button>
+            </div>
+
+            <div id="adminStep3" class="hidden">
+                <button type="button" id="backToStep2" class="text-xs text-blue-500 hover:underline mb-4">← 日時選択に戻る</button>
+                
+                <div class="bg-slate-50 p-3 rounded border border-slate-200 mb-4 text-sm">
+                    <p><strong>日時:</strong> <span id="confirmDateSlot"></span></p>
+                    <p><strong>コース:</strong> <span id="confirmCourseName"></span></p>
                 </div>
-            </form>
+
+                <form id="adminBookingForm" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">お子様のお名前 (必須)</label>
+                        <input type="text" id="adminChildName" class="w-full p-2 border rounded text-sm" required placeholder="例: ロボ 太郎">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">保護者様のお名前 <span class="text-slate-300 font-normal">(任意)</span></label>
+                        <input type="text" id="adminParentName" class="w-full p-2 border rounded text-sm" placeholder="管理者代理登録">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">電話番号 <span class="text-slate-300 font-normal">(任意)</span></label>
+                            <input type="tel" id="adminPhone" class="w-full p-2 border rounded text-sm" placeholder="-">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">メールアドレス <span class="text-slate-300 font-normal">(任意)</span></label>
+                            <input type="email" id="adminEmail" class="w-full p-2 border rounded text-sm" placeholder="-">
+                        </div>
+                    </div>
+                    
+                    <div class="pt-4">
+                        <button type="submit" class="w-full py-3 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 shadow transition">予約を確定する</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
