@@ -1086,6 +1086,15 @@ const setupSchoolAdminEvents = () => {
         document.getElementById('adminBookingDate').value = '';
         document.getElementById('adminTimeSlotsContainer').innerHTML = '<p class="text-center text-xs text-slate-400 py-4">日付を選択してください</p>';
 
+        // ★追加対策: ブラウザの自動入力を後追いで消去する
+        setTimeout(() => {
+            const emailInput = document.getElementById('adminEmail');
+            if (emailInput) {
+                emailInput.value = ''; // 強制クリア
+                emailInput.setAttribute('readonly', 'true'); // 再度readonlyを適用
+            }
+        }, 500); // 500ms後に実行
+
         // 学年ボタンのレンダリング
         const container = document.getElementById('adminGradeSelector');
         container.innerHTML = '';
@@ -1194,15 +1203,16 @@ const setupSchoolAdminEvents = () => {
         
         // 入力値の取得
         const childName = document.getElementById('adminChildName').value;
-        const parentName = document.getElementById('adminParentName').value || '管理者登録'; 
-        const phone = document.getElementById('adminPhone').value || '-'; 
+        const parentName = document.getElementById('adminParentName').value || '管理者登録'; // 空ならデフォルト
+        const phone = document.getElementById('adminPhone').value || '-'; // 空ならハイフン
         
-        // --- 修正: メールアドレスの取得ロジックを明確化 ---
-        // type="text" にしても .value で取得できます
-        const rawEmail = document.getElementById('adminEmail').value; 
-        // 空白を除去し、空ならハイフンにする
-        const inputEmail = rawEmail && rawEmail.trim() !== '' ? rawEmail.trim() : '-';
-        // ------------------------------------------------
+        // ★追加対策: ブラウザが勝手に入力した「管理者のメールアドレス」を検知して無効化する
+        let rawEmail = document.getElementById('adminEmail').value;
+        if (currentUserData && rawEmail === currentUserData.email) {
+            console.log("管理者自身のメールアドレスが自動入力されたため、無効化しました。");
+            rawEmail = ''; 
+        }
+        const email = rawEmail && rawEmail.trim() !== '' ? rawEmail.trim() : '-';
 
         try {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'bookings'), {
@@ -1218,11 +1228,11 @@ const setupSchoolAdminEvents = () => {
                 courseName: adminBookingState.content.name,
                 grade: adminBookingState.grade,
                 
-                // 入力データ
+                // 入力データ（任意項目はデフォルト値が入る）
                 childName: childName,
                 parentName: parentName,
                 phone: phone,
-                email: inputEmail, // ★修正した変数を使う
+                email: email,
                 
                 sourceType: 'admin',
                 createdAt: serverTimestamp()
