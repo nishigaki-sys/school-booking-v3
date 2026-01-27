@@ -548,24 +548,33 @@
                 </div>
 
                 <form id="adminBookingForm" class="space-y-3">
+                    <form id="adminBookingForm" class="space-y-3" autocomplete="off">
+                    <input type="text" name="dummy_user" style="display:none" autocomplete="username">
+                    <input type="password" name="dummy_pass" style="display:none" autocomplete="new-password">
+                    
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1">お子様のお名前 (必須)</label>
-                        <input type="text" id="adminChildName" class="w-full p-2 border rounded text-sm" required placeholder="例: ロボ 太郎">
+                        <input type="text" id="adminChildName" class="w-full p-2 border rounded text-sm" required placeholder="例: ロボ 太郎" autocomplete="off">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1">保護者様のお名前 <span class="text-slate-300 font-normal">(任意)</span></label>
-                        <input type="text" id="adminParentName" class="w-full p-2 border rounded text-sm" placeholder="管理者代理登録">
+                        <input type="text" id="adminParentName" class="w-full p-2 border rounded text-sm" placeholder="管理者代理登録" autocomplete="off">
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1">電話番号 <span class="text-slate-300 font-normal">(任意)</span></label>
-                            <input type="tel" id="adminPhone" class="w-full p-2 border rounded text-sm" placeholder="-">
+                            <input type="tel" id="adminPhone" class="w-full p-2 border rounded text-sm" placeholder="-" autocomplete="off">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1">メールアドレス <span class="text-slate-300 font-normal">(任意)</span></label>
-                            <input type="text" id="adminEmail" class="w-full p-2 border rounded text-sm" placeholder="-" autocomplete="off" name="client_contact_email">
+                            <input type="text" id="adminEmail" class="w-full p-2 border rounded text-sm" placeholder="-" autocomplete="new-password" name="unique_email_field_random">
                         </div>
                     </div>
+                    
+                    <div class="pt-4">
+                        <button type="submit" class="w-full py-3 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 shadow transition">予約を確定する</button>
+                    </div>
+                </form>
                     
                     <div class="pt-4">
                         <button type="submit" class="w-full py-3 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 shadow transition">予約を確定する</button>
