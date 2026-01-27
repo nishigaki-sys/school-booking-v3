@@ -1088,12 +1088,13 @@ const setupSchoolAdminEvents = () => {
 
         // ★追加対策: ブラウザの自動入力を後追いで消去する
         setTimeout(() => {
-            const emailInput = document.getElementById('adminEmail');
+            // 【修正】IDを adminBookingEmail に変更
+            const emailInput = document.getElementById('adminBookingEmail');
             if (emailInput) {
                 emailInput.value = ''; // 強制クリア
                 emailInput.setAttribute('readonly', 'true'); // 再度readonlyを適用
             }
-        }, 500); // 500ms後に実行
+        }, 500);
 
         // 学年ボタンのレンダリング
         const container = document.getElementById('adminGradeSelector');
@@ -1207,7 +1208,9 @@ const setupSchoolAdminEvents = () => {
         const phone = document.getElementById('adminPhone').value || '-'; // 空ならハイフン
         
         // ★追加対策: ブラウザが勝手に入力した「管理者のメールアドレス」を検知して無効化する
-        let rawEmail = document.getElementById('adminEmail').value;
+        // 【修正】IDを adminBookingEmail に変更
+        let rawEmail = document.getElementById('adminBookingEmail').value;
+        
         if (currentUserData && rawEmail === currentUserData.email) {
             console.log("管理者自身のメールアドレスが自動入力されたため、無効化しました。");
             rawEmail = ''; 
