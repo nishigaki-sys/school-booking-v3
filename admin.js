@@ -13,6 +13,26 @@ const GRADE_CONFIG = {
     grade3_plus: { bg: 'bg-[#00b4dc]', text: 'text-white' }
 };
 
+// --- 追加: 学年マッチング用ヘルパー関数 ---
+const checkGradeMatch = (selectedBtnGrade, eventGrades) => {
+    if (!eventGrades || eventGrades.length === 0) return false;
+    if (eventGrades.includes('all_grades')) return true;
+    return eventGrades.includes(selectedBtnGrade);
+};
+
+// --- 追加: 管理画面用 学年ボタン定義 ---
+const ADMIN_GRADE_BUTTONS = [
+    { key: 'preschool_mid', label: '年中', color: 'pink' },
+    { key: 'preschool_senior', label: '年長', color: 'pink' },
+    { key: 'grade1', label: '小1', color: 'orange' },
+    { key: 'grade2', label: '小2', color: 'orange' },
+    { key: 'grade3', label: '小3', color: 'blue' },
+    { key: 'grade4', label: '小4', color: 'blue' },
+    { key: 'grade5', label: '小5', color: 'blue' },
+    { key: 'grade6', label: '小6', color: 'blue' },
+    { key: 'older', label: 'それ以上', color: 'blue' }
+];
+
 // 色決定ロジックの共通化
 const getEventColorClass = (grades) => {
     if (!grades || grades.length === 0) return "bg-blue-500 text-white";
@@ -107,7 +127,7 @@ const initFirebase = async () => {
     auth = getAuth(app);
     db = getFirestore(app);
     
-    // Load Global Configs (Public Read)
+    // Load Global Configs (Public Read) - 修正: ログイン後に移動
     // loadAllowedIps(db, appId);  
     fetchIpAddress();
     
@@ -156,7 +176,8 @@ const initFirebase = async () => {
                 }
             } catch (e) {
                 console.error("Auth Error", e);
-                alert("認証情報の取得に失敗しました。");
+                // 修正: alertを抑制
+                console.error("認証情報の取得に失敗しました。");
             }
         } else {
             // Logged Out
@@ -1037,48 +1058,175 @@ const setupSchoolAdminEvents = () => {
         showToast("保存しました");
     };
 
-    // Booking Add/Edit
-    document.getElementById('openAddBookingModalBtn').onclick = () => {
-        document.getElementById('addBookingModal').classList.remove('hidden');
-        document.getElementById('addBookingForm').reset();
-        document.getElementById('newBookingScheduleId').innerHTML = '<option value="">先に日付を選択してください</option>';
+    // --- 変更: 管理者予約フロー（3ステップ） ---
+    
+    // 変数: 管理者予約フローの状態管理
+    let adminBookingState = {
+        grade: null,
+        date: null,
+        content: null,
+        startTime: null,
+        capacity: 0
     };
 
-    document.getElementById('newBookingDate').addEventListener('change', (e) => {
-        updateScheduleSelect(e.target.value, 'newBookingScheduleId');
+    // モーダルを開く
+    document.getElementById('openAddBookingModalBtn').onclick = () => {
+        document.getElementById('addBookingModal').classList.remove('hidden');
+        resetAdminBookingFlow();
+    };
+
+    // フロー初期化・学年ボタン生成
+    const resetAdminBookingFlow = () => {
+        adminBookingState = { grade: null, date: null, content: null, startTime: null, capacity: 0 };
+        
+        document.getElementById('adminStep1').classList.remove('hidden');
+        document.getElementById('adminStep2').classList.add('hidden');
+        document.getElementById('adminStep3').classList.add('hidden');
+        document.getElementById('adminBookingForm').reset();
+        document.getElementById('adminBookingDate').value = '';
+        document.getElementById('adminTimeSlotsContainer').innerHTML = '<p class="text-center text-xs text-slate-400 py-4">日付を選択してください</p>';
+
+        // 学年ボタンのレンダリング
+        const container = document.getElementById('adminGradeSelector');
+        container.innerHTML = '';
+        ADMIN_GRADE_BUTTONS.forEach(g => {
+            const btn = document.createElement('button');
+            let colorClass = '';
+            if(g.color === 'pink') colorClass = 'border-pink-300 text-pink-500 hover:bg-pink-50';
+            else if(g.color === 'orange') colorClass = 'border-orange-300 text-orange-500 hover:bg-orange-50';
+            else colorClass = 'border-cyan-300 text-cyan-500 hover:bg-cyan-50';
+
+            btn.className = `p-2 border rounded font-bold text-xs transition ${colorClass}`;
+            btn.textContent = g.label;
+            btn.onclick = () => selectAdminGrade(g.key, g.label);
+            container.appendChild(btn);
+        });
+    };
+
+    // Step 1: 学年選択後の処理
+    const selectAdminGrade = (gradeKey, gradeLabel) => {
+        adminBookingState.grade = gradeKey;
+        document.getElementById('selectedGradeDisplay').textContent = `対象: ${gradeLabel}`;
+        document.getElementById('adminStep1').classList.add('hidden');
+        document.getElementById('adminStep2').classList.remove('hidden');
+    };
+
+    // Step 1に戻る
+    document.getElementById('backToStep1').onclick = () => {
+        document.getElementById('adminStep2').classList.add('hidden');
+        document.getElementById('adminStep1').classList.remove('hidden');
+    };
+
+    // Step 2: 日付選択時の処理
+    document.getElementById('adminBookingDate').addEventListener('change', (e) => {
+        const date = e.target.value;
+        adminBookingState.date = date;
+        renderAdminTimeSlots(date);
     });
 
-    document.getElementById('addBookingForm').onsubmit = async (e) => {
-        e.preventDefault();
-        const date = document.getElementById('newBookingDate').value;
-        const scheduleVal = document.getElementById('newBookingScheduleId').value;
-        if (!date || !scheduleVal) return alert("日時とコースを選択してください");
+    // Step 2: スロット（空き枠）の描画
+    const renderAdminTimeSlots = (dateStr) => {
+        const container = document.getElementById('adminTimeSlotsContainer');
+        container.innerHTML = '';
 
-        const scheduleData = JSON.parse(scheduleVal);
+        if (!dateStr) return;
+        
+        // スケジュール取得
+        const events = (currentSettings.schedule[dateStr] || []).filter(evt => {
+            const content = (currentSettings.contents || []).find(c => c.id === evt.contentId);
+            if(!content) return false;
+            
+            // 学年チェック
+            const targetGrades = evt.grades || (content.grades || []) || [];
+            return checkGradeMatch(adminBookingState.grade, targetGrades);
+        }).sort((a,b) => a.startTime.localeCompare(b.startTime));
+
+        if (events.length === 0) {
+            container.innerHTML = '<p class="text-center text-xs text-red-400 py-4">選択された学年で参加可能な枠がありません</p>';
+            return;
+        }
+
+        events.forEach(evt => {
+            const content = currentSettings.contents.find(c => c.id === evt.contentId);
+            const booked = allBookings.filter(b => b.date === dateStr && b.startTime === evt.startTime && b.contentId === evt.contentId).length;
+            const remaining = Math.max(0, parseInt(evt.capacity) - booked);
+            
+            const btn = document.createElement('button');
+            // 管理者は満席でも無理やり登録できる仕様 (disabledにしない)
+            const isFull = remaining <= 0;
+            const bgClass = isFull ? 'bg-red-50 border-red-200' : 'bg-white hover:bg-blue-50 border-slate-200 hover:border-blue-300';
+            
+            btn.className = `w-full text-left p-3 border rounded-lg mb-2 flex justify-between items-center transition ${bgClass}`;
+            btn.innerHTML = `
+                <div>
+                    <span class="font-bold text-slate-700 mr-2">${evt.startTime}</span>
+                    <span class="text-xs text-slate-600">${content.name}</span>
+                </div>
+                <span class="text-xs font-bold ${isFull ? 'text-red-500' : 'text-blue-500'}">残 ${remaining}</span>
+            `;
+            
+            btn.onclick = () => {
+                adminBookingState.content = content;
+                adminBookingState.startTime = evt.startTime;
+                adminBookingState.capacity = parseInt(evt.capacity);
+                
+                // 確認表示
+                document.getElementById('confirmDateSlot').textContent = `${dateStr} ${evt.startTime}`;
+                document.getElementById('confirmCourseName').textContent = content.name;
+                
+                // 画面遷移
+                document.getElementById('adminStep2').classList.add('hidden');
+                document.getElementById('adminStep3').classList.remove('hidden');
+            };
+            container.appendChild(btn);
+        });
+    };
+
+    // Step 2に戻る
+    document.getElementById('backToStep2').onclick = () => {
+        document.getElementById('adminStep3').classList.add('hidden');
+        document.getElementById('adminStep2').classList.remove('hidden');
+    };
+
+    // Step 3: フォーム送信（最終確定）
+    document.getElementById('adminBookingForm').onsubmit = async (e) => {
+        e.preventDefault();
+        
+        // 入力値の取得
+        const childName = document.getElementById('adminChildName').value;
+        const parentName = document.getElementById('adminParentName').value || '管理者登録'; // 空ならデフォルト
+        const phone = document.getElementById('adminPhone').value || '-'; // 空ならハイフン
+        const email = document.getElementById('adminEmail').value || '-'; // 空ならハイフン
 
         try {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'bookings'), {
-                // --- 自動ID生成 ---
+                // ID生成
                 bookingId: generateBookingId(),
                 schoolId: currentSchoolId,
                 schoolName: currentSettings.schoolName,
-                date: date,
-                startTime: scheduleData.startTime,
-                contentId: scheduleData.contentId,
-                courseName: scheduleData.courseName,
-                // 個人情報は保存しない（またはダミー）
-                childName: '管理者登録',
-                parentName: '-',
-                email: '-',
-                phone: '-',
-                grade: document.getElementById('newGrade').value,
+                
+                // 選択データ
+                date: adminBookingState.date,
+                startTime: adminBookingState.startTime,
+                contentId: adminBookingState.content.id,
+                courseName: adminBookingState.content.name,
+                grade: adminBookingState.grade,
+                
+                // 入力データ（任意項目はデフォルト値が入る）
+                childName: childName,
+                parentName: parentName,
+                phone: phone,
+                email: email,
+                
                 sourceType: 'admin',
                 createdAt: serverTimestamp()
             });
+            
             document.getElementById('addBookingModal').classList.add('hidden');
             showToast("予約を登録しました");
         } catch (err) {
-            alert("登録失敗: " + err.message);
+            console.error(err);
+            alert("登録に失敗しました: " + err.message);
         }
     };
     
