@@ -566,7 +566,15 @@
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1">メールアドレス <span class="text-slate-300 font-normal">(任意)</span></label>
-                            <input type="text" id="adminEmail" class="w-full p-2 border rounded text-sm" placeholder="-" autocomplete="new-password" name="unique_email_field_random">
+                            <input type="text" 
+                                   id="adminEmail" 
+                                   class="w-full p-2 border rounded text-sm bg-white" 
+                                   placeholder="-" 
+                                   autocomplete="off" 
+                                   name="random_unique_email_field"
+                                   readonly
+                                   onfocus="this.removeAttribute('readonly');"
+                            >
                         </div>
                     </div>
                     
